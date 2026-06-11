@@ -159,6 +159,12 @@ document.querySelector("#bodyInput").addEventListener("keydown", (e) => {
 });
 
 document.querySelector("#app").addEventListener("click", (e) => {
+  const closeBtn = e.target.closest("[aria-label='Close']");
+  if (closeBtn) {
+    window.close();
+    return;
+  }
+
   const tabBtn = e.target.closest(".nav-item");
   if (tabBtn) {
     switchTab(tabBtn.dataset.tab);

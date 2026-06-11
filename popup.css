@@ -65,6 +65,23 @@
     color: var(--color-text);
 }
 
+.danger-btn {
+    color: var(--color-text-muted);
+    transition:
+        background var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.danger-btn:hover {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+}
+
+.danger-btn:active {
+    transform: scale(0.92);
+}
+
 /* ─── Navigation ─── */
 .nav {
     display: flex;
