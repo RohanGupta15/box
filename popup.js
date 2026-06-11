@@ -141,7 +141,7 @@ function deleteNote(index) {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  render();
+  switchTab("new");
 });
 
 document.querySelector("#titleInput").addEventListener("keydown", (e) => {
@@ -171,6 +171,12 @@ document.querySelector("#app").addEventListener("click", (e) => {
     return;
   }
 
+  const copyBtn = e.target.closest(".copy-btn");
+  if (copyBtn) {
+    copyContent(parseInt(copyBtn.dataset.index));
+    return;
+  }
+
   const deleteBtn = e.target.closest(".delete-btn");
   if (deleteBtn) {
     deleteNote(parseInt(deleteBtn.dataset.index));
@@ -180,9 +186,11 @@ document.querySelector("#app").addEventListener("click", (e) => {
   const card = e.target.closest(".note-card");
   if (card) {
     document
-      .querySelectorAll(".note-card")
-      .forEach((c) => c.classList.remove("active"));
-    card.classList.add("active");
+      .querySelectorAll(".note-card.expanded")
+      .forEach((c) => {
+        if (c !== card) c.classList.remove("expanded");
+      });
+    card.classList.toggle("expanded");
   }
 });
 
@@ -191,15 +199,8 @@ document.addEventListener("keydown", (e) => {
     document.querySelector("#titleInput").blur();
     document.querySelector("#bodyInput").blur();
     document
-      .querySelectorAll(".note-card")
-      .forEach((c) => c.classList.remove("active"));
-  }
-});
-
-document.querySelector("#noteList").addEventListener("click", (e) => {
-  const copyBtn = e.target.closest(".copy-btn");
-  if (copyBtn) {
-    copyContent(parseInt(copyBtn.dataset.index));
+      .querySelectorAll(".note-card.expanded")
+      .forEach((c) => c.classList.remove("expanded"));
   }
 });
 
@@ -234,33 +235,17 @@ function copyContent(index) {
     });
 }
 
-function getTheme() {
-  return localStorage.getItem(THEME_KEY) || "light";
-}
-
-function saveTheme(theme) {
-  localStorage.setItem(THEME_KEY, theme);
-}
-
-function applyTheme(theme) {
-  document.body.classList.toggle("dark", theme === "dark");
-  updateThemeIcon(theme);
-}
-
-function updateThemeIcon(theme) {
-  const use = document.querySelector("#theme-btn use");
-  use.setAttribute("href", `${SPRITE_PATH}#icon-${theme === "dark" ? "sun" : "moon"}`);
-}
-
 function initTheme() {
-  const theme = getTheme();
-  applyTheme(theme);
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "dark") {
+    document.querySelector("#app").classList.add("dark");
+  }
 }
 
 document.querySelector("#theme-btn").addEventListener("click", () => {
-  const isDark = document.body.classList.contains("dark");
-  const newTheme = isDark ? "light" : "dark";
-  applyTheme(newTheme);
-  saveTheme(newTheme);
-  showToast(`Switched to ${newTheme} mode`, "success");
+  const app = document.querySelector("#app");
+  app.classList.toggle("dark");
+  const isDark = app.classList.contains("dark");
+  localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
+  showToast(isDark ? "Switched to dark mode" : "Switched to light mode", "success");
 });

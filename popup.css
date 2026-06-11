@@ -7,6 +7,8 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    color: var(--color-text);
+    background: var(--color-bg);
 }
 
 /* ─── Header ─── */
@@ -310,13 +312,25 @@
     color: var(--color-text-secondary);
     line-height: var(--line-height-normal);
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
 .note-card.active .note-preview {
     color: var(--color-text);
+}
+
+.note-card.expanded .note-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.note-card.expanded .note-preview {
+    -webkit-line-clamp: unset;
+    display: block;
+    overflow: visible;
 }
 
 /* ─── Empty State ─── */
