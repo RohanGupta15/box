@@ -2,10 +2,10 @@
   "manifest_version": 2,
   "name": "Box",
   "version": "1.0",
-  "description": "Write and organize your notes with Quil.",
+  "description": "Write and organize your notes with Box.",
   "browser_action": {
     "default_popup": "popup.html",
-    "default_title": "Quil",
+    "default_title": "Box",
     "default_icon": {
       "16": "icons/icon.svg",
       "48": "icons/icon.svg",

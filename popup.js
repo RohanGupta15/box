@@ -1,4 +1,5 @@
-const STORAGE_KEY = "quil-notes";
+const STORAGE_KEY = "box-notes";
+const THEME_KEY = "box-theme";
 
 const SPRITE_PATH = "icons/sprite.svg";
 
@@ -138,7 +139,10 @@ function deleteNote(index) {
 
 /* ─── Event Listeners ─── */
 
-document.addEventListener("DOMContentLoaded", render);
+document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  render();
+});
 
 document.querySelector("#titleInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
@@ -224,10 +228,33 @@ function copyContent(index) {
     });
 }
 
-document.querySelector("#theme-btn").addEventListener("click", (e) => {
-  const app = document.querySelector("#app");
-  app.classList.toggle("dark");
-  app.classList.toggle("light");
-  showToast("Theme Changed!", "success");
-  // store current theme in localStorage
+function getTheme() {
+  return localStorage.getItem(THEME_KEY) || "light";
+}
+
+function saveTheme(theme) {
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle("dark", theme === "dark");
+  updateThemeIcon(theme);
+}
+
+function updateThemeIcon(theme) {
+  const use = document.querySelector("#theme-btn use");
+  use.setAttribute("href", `${SPRITE_PATH}#icon-${theme === "dark" ? "sun" : "moon"}`);
+}
+
+function initTheme() {
+  const theme = getTheme();
+  applyTheme(theme);
+}
+
+document.querySelector("#theme-btn").addEventListener("click", () => {
+  const isDark = document.body.classList.contains("dark");
+  const newTheme = isDark ? "light" : "dark";
+  applyTheme(newTheme);
+  saveTheme(newTheme);
+  showToast(`Switched to ${newTheme} mode`, "success");
 });

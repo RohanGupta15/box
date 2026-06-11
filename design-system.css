@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   Quil Design System
+   Box Design System
    ═══════════════════════════════════════════ */
 
 :root {
@@ -122,6 +122,33 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* ── Dark Theme ── */
+.dark {
+  --color-bg: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f3460;
+  --color-text: #e0e0e0;
+  --color-text-secondary: #a0a0b0;
+  --color-text-muted: #6b7280;
+  --color-border: #2a2a4a;
+  --color-border-light: #222244;
+  --color-primary-bg: rgba(108, 99, 255, 0.15);
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-success-bg: rgba(16, 185, 129, 0.15);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.dark #toast.notification.success {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.dark #toast.notification.error {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 /* ── Scrollbar ── */

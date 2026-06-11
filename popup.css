@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   Quil — Component Styles
+   Box — Component Styles
    ═══════════════════════════════════════════ */
 
 /* ─── App Shell ─── */
@@ -21,7 +21,7 @@
     justify-content: space-between;
     padding: var(--space-md) var(--space-lg);
     border-bottom: 1px solid var(--color-border);
-    background-color: whitesmoke;
+    background-color: var(--color-bg-secondary);
 }
 
 .logo {
@@ -73,7 +73,7 @@
     padding: var(--space-sm) var(--space-md);
     border-bottom: 1px solid var(--color-border);
     overflow-x: auto;
-    background-color: white;
+    background-color: var(--color-bg);
 }
 
 .nav-item {
