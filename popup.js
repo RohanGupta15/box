@@ -24,6 +24,24 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function sanitizeHtml(html) {
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  t.content.querySelectorAll("script, style, iframe, object, embed").forEach((el) => el.remove());
+  t.content.querySelectorAll("*").forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      if (attr.name.startsWith("on")) el.removeAttribute(attr.name);
+    });
+  });
+  return t.innerHTML;
+}
+
+function stripHtml(html) {
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  return t.textContent;
+}
+
 function formatTimestamp(date) {
   const now = new Date();
   const d = new Date(date);
@@ -100,7 +118,7 @@ function render() {
           </div>
         </div>
         <div class="note-title">${escapeHtml(note.title || "Untitled")}</div>
-        <div class="note-preview">${escapeHtml(note.body || "No content")}</div>
+        <div class="note-preview">${sanitizeHtml(note.body || "No content")}</div>
       </div>`,
     )
     .join("");
@@ -110,9 +128,10 @@ function render() {
 
 function addNote() {
   const titleInput = document.querySelector("#titleInput");
-  const bodyInput = document.querySelector("#bodyInput");
+  const bodyEditor = document.querySelector("#bodyEditor");
   const title = titleInput.value.trim();
-  const body = bodyInput.value.trim();
+  const rawBody = sanitizeHtml(bodyEditor.innerHTML).trim();
+  const body = rawBody || "";
 
   if (!title && !body) return;
 
@@ -126,7 +145,7 @@ function addNote() {
   saveNotes(notes);
 
   titleInput.value = "";
-  bodyInput.value = "";
+  bodyEditor.innerHTML = "";
   switchTab("list");
 }
 
@@ -141,18 +160,17 @@ function deleteNote(index) {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  switchTab("new");
 });
 
 document.querySelector("#titleInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
-    document.querySelector("#bodyInput").focus();
+    document.querySelector("#bodyEditor").focus();
   }
 });
 
-document.querySelector("#bodyInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
+document.querySelector("#bodyEditor").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
     addNote();
   }
@@ -171,12 +189,6 @@ document.querySelector("#app").addEventListener("click", (e) => {
     return;
   }
 
-  const copyBtn = e.target.closest(".copy-btn");
-  if (copyBtn) {
-    copyContent(parseInt(copyBtn.dataset.index));
-    return;
-  }
-
   const deleteBtn = e.target.closest(".delete-btn");
   if (deleteBtn) {
     deleteNote(parseInt(deleteBtn.dataset.index));
@@ -186,21 +198,51 @@ document.querySelector("#app").addEventListener("click", (e) => {
   const card = e.target.closest(".note-card");
   if (card) {
     document
-      .querySelectorAll(".note-card.expanded")
-      .forEach((c) => {
-        if (c !== card) c.classList.remove("expanded");
-      });
-    card.classList.toggle("expanded");
+      .querySelectorAll(".note-card")
+      .forEach((c) => c.classList.remove("active"));
+    card.classList.add("active");
   }
 });
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     document.querySelector("#titleInput").blur();
-    document.querySelector("#bodyInput").blur();
+    document.querySelector("#bodyEditor").blur();
     document
-      .querySelectorAll(".note-card.expanded")
-      .forEach((c) => c.classList.remove("expanded"));
+      .querySelectorAll(".note-card")
+      .forEach((c) => c.classList.remove("active"));
+  }
+});
+
+document.querySelector("#saveBtn").addEventListener("click", (e) => {
+  e.preventDefault();
+  addNote();
+});
+
+function updateToolbarState() {
+  document.querySelectorAll("[data-cmd]").forEach((btn) => {
+    const cmd = btn.dataset.cmd;
+    try {
+      btn.classList.toggle("active", document.queryCommandState(cmd));
+    } catch {}
+  });
+}
+
+document.querySelector("#toolbar").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-cmd]");
+  if (!btn) return;
+  e.preventDefault();
+  document.execCommand(btn.dataset.cmd, false, null);
+  document.querySelector("#bodyEditor").focus();
+  updateToolbarState();
+});
+
+document.querySelector("#bodyEditor").addEventListener("mouseup keyup", updateToolbarState);
+
+document.querySelector("#noteList").addEventListener("click", (e) => {
+  const copyBtn = e.target.closest(".copy-btn");
+  if (copyBtn) {
+    copyContent(parseInt(copyBtn.dataset.index));
   }
 });
 
@@ -226,7 +268,7 @@ function copyTextToClipboard(text) {
 function copyContent(index) {
   const notes = getNotes();
 
-  copyTextToClipboard(notes[index].body)
+  copyTextToClipboard(stripHtml(notes[index].body))
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
@@ -235,17 +277,33 @@ function copyContent(index) {
     });
 }
 
+function getTheme() {
+  return localStorage.getItem(THEME_KEY) || "light";
+}
+
+function saveTheme(theme) {
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle("dark", theme === "dark");
+  updateThemeIcon(theme);
+}
+
+function updateThemeIcon(theme) {
+  const use = document.querySelector("#theme-btn use");
+  use.setAttribute("href", `${SPRITE_PATH}#icon-${theme === "dark" ? "sun" : "moon"}`);
+}
+
 function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  if (saved === "dark") {
-    document.querySelector("#app").classList.add("dark");
-  }
+  const theme = getTheme();
+  applyTheme(theme);
 }
 
 document.querySelector("#theme-btn").addEventListener("click", () => {
-  const app = document.querySelector("#app");
-  app.classList.toggle("dark");
-  const isDark = app.classList.contains("dark");
-  localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
-  showToast(isDark ? "Switched to dark mode" : "Switched to light mode", "success");
+  const isDark = document.body.classList.contains("dark");
+  const newTheme = isDark ? "light" : "dark";
+  applyTheme(newTheme);
+  saveTheme(newTheme);
+  showToast(`Switched to ${newTheme} mode`, "success");
 });

@@ -102,8 +102,8 @@ body {
   max-height: var(--panel-max-height);
   font-family: var(--font-family);
   font-size: var(--font-size-base);
-  background: #ffffff;
-  color: #1a1a2e;
+  color: var(--color-text);
+  background: var(--color-bg);
   overflow-x: hidden;
   overflow-y: auto;
 }
