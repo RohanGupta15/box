@@ -5,17 +5,25 @@ const SPRITE_PATH = "icons/sprite.svg";
 
 /* ─── Helpers ─── */
 
-function getNotes() {
+async function getNotes() {
+  const stored = await browser.storage.local.get(STORAGE_KEY);
+  if (stored[STORAGE_KEY]) return stored[STORAGE_KEY];
+
+  // One-time migration from the old localStorage copy.
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const legacy = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    if (legacy.length) {
+      await saveNotes(legacy);
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    return legacy;
   } catch {
     return [];
   }
 }
 
 function saveNotes(notes) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  return browser.storage.local.set({ [STORAGE_KEY]: notes });
 }
 
 function escapeHtml(text) {
@@ -30,7 +38,8 @@ function sanitizeHtml(html) {
   t.content.querySelectorAll("script, style, iframe, object, embed").forEach((el) => el.remove());
   t.content.querySelectorAll("*").forEach((el) => {
     [...el.attributes].forEach((attr) => {
-      if (attr.name.startsWith("on")) el.removeAttribute(attr.name);
+      const unsafeUrl = /^\s*(javascript|data|vbscript):/i.test(attr.value);
+      if (attr.name.startsWith("on") || unsafeUrl) el.removeAttribute(attr.name);
     });
   });
   return t.innerHTML;
@@ -43,17 +52,16 @@ function stripHtml(html) {
 }
 
 function formatTimestamp(date) {
-  const now = new Date();
   const d = new Date(date);
-  const diff = now - d;
-  const oneDay = 86400000;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
 
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  if (diff < oneDay && d.getDate() === now.getDate()) {
+  if (d.toDateString() === new Date().toDateString()) {
     return `Today at ${time}`;
   }
-  if (diff < 2 * oneDay && d.getDate() === now.getDate() - 1) {
+  if (d.toDateString() === yesterday.toDateString()) {
     return `Yesterday at ${time}`;
   }
   return (
@@ -89,30 +97,30 @@ function switchTab(tabId) {
 
 /* ─── Render ─── */
 
-function render() {
-  const notes = getNotes();
+async function render() {
+  const notes = await getNotes();
   const list = document.querySelector("#noteList");
 
   if (notes.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">&#128221;</div>
-        <div class="empty-state-text">No notes yet.<br>Write one above!</div>
+        <div class="empty-state-icon">${iconUse("notes", 32)}</div>
+        <div class="empty-state-text">No notes yet.<br>Write one in the New tab.</div>
       </div>`;
     return;
   }
 
   list.innerHTML = notes
     .map(
-      (note, i) => `
-      <div class="note-card" data-index="${i}">
+      (note) => `
+      <div class="note-card" data-id="${note.id}" tabindex="0">
         <div class="note-card-header">
           <span class="note-timestamp">${formatTimestamp(note.createdAt)}</span>
           <div class="note-card-actions">
-            <button class="icon-btn delete-btn" data-index="${i}" title="Delete note" aria-label="Delete note">
+            <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note" aria-label="Delete note">
               ${iconUse("delete", 14)}
             </button>
-            <button class="icon-btn copy-btn" data-index="${i}" title="Copy note" aria-label="Copy note">
+            <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note" aria-label="Copy note">
               ${iconUse("copy", 14)}
             </button>
           </div>
@@ -126,7 +134,7 @@ function render() {
 
 /* ─── Actions ─── */
 
-function addNote() {
+async function addNote() {
   const titleInput = document.querySelector("#titleInput");
   const bodyEditor = document.querySelector("#bodyEditor");
   const title = titleInput.value.trim();
@@ -135,32 +143,40 @@ function addNote() {
 
   if (!title && !body) return;
 
-  const notes = getNotes();
+  const notes = await getNotes();
   notes.unshift({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     title: title || "Untitled",
     body: body || "No content",
     createdAt: new Date().toISOString(),
   });
-  saveNotes(notes);
+  await saveNotes(notes);
 
   titleInput.value = "";
   bodyEditor.innerHTML = "";
   switchTab("list");
 }
 
-function deleteNote(index) {
-  const notes = getNotes();
-  notes.splice(index, 1);
-  saveNotes(notes);
-  render();
+// Firefox popups don't support confirm(), so delete needs a second click.
+function deleteNote(btn) {
+  if (!btn.classList.contains("armed")) {
+    btn.classList.add("armed");
+    btn.setAttribute("aria-label", "Click again to delete");
+    btn.title = "Click again to delete";
+    showToast("Click delete again to confirm", "error");
+    setTimeout(() => {
+      btn.classList.remove("armed");
+      btn.setAttribute("aria-label", "Delete note");
+      btn.title = "Delete note";
+    }, 3000);
+    return;
+  }
+  getNotes()
+    .then((notes) => saveNotes(notes.filter((n) => n.id !== btn.dataset.id)))
+    .then(render);
 }
 
 /* ─── Event Listeners ─── */
-
-document.addEventListener("DOMContentLoaded", () => {
-  initTheme();
-});
 
 document.querySelector("#titleInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
@@ -191,7 +207,7 @@ document.querySelector("#app").addEventListener("click", (e) => {
 
   const deleteBtn = e.target.closest(".delete-btn");
   if (deleteBtn) {
-    deleteNote(parseInt(deleteBtn.dataset.index));
+    deleteNote(deleteBtn);
     return;
   }
 
@@ -237,12 +253,14 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
   updateToolbarState();
 });
 
-document.querySelector("#bodyEditor").addEventListener("mouseup keyup", updateToolbarState);
+["mouseup", "keyup"].forEach((type) =>
+  document.querySelector("#bodyEditor").addEventListener(type, updateToolbarState),
+);
 
 document.querySelector("#noteList").addEventListener("click", (e) => {
   const copyBtn = e.target.closest(".copy-btn");
   if (copyBtn) {
-    copyContent(parseInt(copyBtn.dataset.index));
+    copyContent(copyBtn.dataset.id);
   }
 });
 
@@ -265,10 +283,11 @@ function copyTextToClipboard(text) {
   return navigator.clipboard.writeText(text);
 }
 
-function copyContent(index) {
-  const notes = getNotes();
+async function copyContent(id) {
+  const note = (await getNotes()).find((n) => n.id === id);
+  if (!note) return;
 
-  copyTextToClipboard(stripHtml(notes[index].body))
+  copyTextToClipboard(stripHtml(note.body))
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
@@ -278,7 +297,9 @@ function copyContent(index) {
 }
 
 function getTheme() {
-  return localStorage.getItem(THEME_KEY) || "light";
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) return saved;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function saveTheme(theme) {
@@ -295,10 +316,8 @@ function updateThemeIcon(theme) {
   use.setAttribute("href", `${SPRITE_PATH}#icon-${theme === "dark" ? "sun" : "moon"}`);
 }
 
-function initTheme() {
-  const theme = getTheme();
-  applyTheme(theme);
-}
+// Runs synchronously at script load (end of body) to avoid a light flash.
+applyTheme(getTheme());
 
 document.querySelector("#theme-btn").addEventListener("click", () => {
   const isDark = document.body.classList.contains("dark");
