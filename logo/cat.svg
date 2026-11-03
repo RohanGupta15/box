@@ -1,0 +1,3 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><title>Box</title>
+<path fill="#000" stroke="#000" stroke-width="16" stroke-linejoin="round" d="M64 104l18-36 26 36z M148 104l26-36 18 36z"/>
+<path fill="#000" fill-rule="evenodd" d="M40 128a28 28 0 0 1 28-28h120a28 28 0 0 1 28 28v60a28 28 0 0 1-28 28H68a28 28 0 0 1-28-28z M92 150h72a10 10 0 0 1 0 20H92a10 10 0 0 1 0-20z"/></svg>
