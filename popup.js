@@ -1,5 +1,6 @@
 const STORAGE_KEY = "box-notes";
 const THEME_KEY = "box-theme";
+const DRAFT_KEY = "box-draft";
 
 const SPRITE_PATH = "icons/sprite.svg";
 
@@ -154,6 +155,7 @@ async function addNote() {
 
   titleInput.value = "";
   bodyEditor.innerHTML = "";
+  await browser.storage.local.remove(DRAFT_KEY);
   switchTab("list");
 }
 
@@ -230,6 +232,25 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// The popup closes on any outside click, so keep the unsaved note in storage.
+function saveDraft() {
+  browser.storage.local.set({
+    [DRAFT_KEY]: {
+      title: document.querySelector("#titleInput").value,
+      body: document.querySelector("#bodyEditor").innerHTML,
+    },
+  });
+}
+
+document.querySelector("#titleInput").addEventListener("input", saveDraft);
+document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
+
+browser.storage.local.get(DRAFT_KEY).then(({ [DRAFT_KEY]: draft }) => {
+  if (!draft) return;
+  document.querySelector("#titleInput").value = draft.title;
+  document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(draft.body);
+});
+
 document.querySelector("#saveBtn").addEventListener("click", (e) => {
   e.preventDefault();
   addNote();
@@ -287,7 +308,7 @@ async function copyContent(id) {
   const note = (await getNotes()).find((n) => n.id === id);
   if (!note) return;
 
-  copyTextToClipboard(stripHtml(note.body))
+  copyTextToClipboard(`${note.title}\n\n${stripHtml(note.body)}`)
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
