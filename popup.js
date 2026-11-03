@@ -121,6 +121,9 @@ async function render() {
             <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note" aria-label="Delete note">
               ${iconUse("delete", 14)}
             </button>
+            <button class="icon-btn edit-btn" data-id="${note.id}" title="Edit note" aria-label="Edit note">
+              ${iconUse("reading", 14)}
+            </button>
             <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note" aria-label="Copy note">
               ${iconUse("copy", 14)}
             </button>
@@ -145,18 +148,50 @@ async function addNote() {
   if (!title && !body) return;
 
   const notes = await getNotes();
-  notes.unshift({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    title: title || "Untitled",
-    body: body || "No content",
-    createdAt: new Date().toISOString(),
-  });
+  const existing = notes.find((n) => n.id === editingId);
+  if (existing) {
+    existing.title = title || "Untitled";
+    existing.body = body || "No content";
+  } else {
+    notes.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title: title || "Untitled",
+      body: body || "No content",
+      createdAt: new Date().toISOString(),
+    });
+  }
   await saveNotes(notes);
 
+  setEditing(null);
   titleInput.value = "";
   bodyEditor.innerHTML = "";
   await browser.storage.local.remove(DRAFT_KEY);
   switchTab("list");
+}
+
+let editingId = null;
+
+function setEditing(id) {
+  editingId = id;
+  document.querySelector("#composerTitle").textContent = id ? "Edit Note" : "New Note";
+  document.querySelector("#saveLabel").textContent = id ? "Save Changes" : "Save Note";
+}
+
+async function editNote(id) {
+  const note = (await getNotes()).find((n) => n.id === id);
+  if (!note) return;
+  setEditing(id);
+  document.querySelector("#titleInput").value = note.title;
+  document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(note.body === "No content" ? "" : note.body);
+  saveDraft();
+  switchTab("new");
+}
+
+function startNewNote() {
+  setEditing(null);
+  document.querySelector("#titleInput").value = "";
+  document.querySelector("#bodyEditor").innerHTML = "";
+  browser.storage.local.remove(DRAFT_KEY);
 }
 
 // Firefox popups don't support confirm(), so delete needs a second click.
@@ -203,7 +238,15 @@ document.querySelector("#app").addEventListener("click", (e) => {
 
   const tabBtn = e.target.closest(".nav-item");
   if (tabBtn) {
+    // Tapping New while editing starts a fresh note; the saved one is untouched.
+    if (tabBtn.dataset.tab === "new" && editingId) startNewNote();
     switchTab(tabBtn.dataset.tab);
+    return;
+  }
+
+  const editBtn = e.target.closest(".edit-btn");
+  if (editBtn) {
+    editNote(editBtn.dataset.id);
     return;
   }
 
@@ -238,6 +281,7 @@ function saveDraft() {
     [DRAFT_KEY]: {
       title: document.querySelector("#titleInput").value,
       body: document.querySelector("#bodyEditor").innerHTML,
+      editingId,
     },
   });
 }
@@ -247,6 +291,7 @@ document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
 
 browser.storage.local.get(DRAFT_KEY).then(({ [DRAFT_KEY]: draft }) => {
   if (!draft) return;
+  setEditing(draft.editingId || null);
   document.querySelector("#titleInput").value = draft.title;
   document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(draft.body);
 });
