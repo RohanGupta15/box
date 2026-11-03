@@ -4,12 +4,12 @@
 
 :root {
   /* ── Colors ── */
-  /* Single accent: burnt orange on zinc neutrals */
-  --color-primary: #C2410C;
-  --color-primary-light: #EA580C;
-  --color-primary-dark: #9A3412;
-  --color-primary-bg: rgba(194, 65, 12, 0.08);
-  --color-on-primary: #FAFAFA;
+  /* Single accent: Keepsake teal (logo/GUIDELINES.md) on zinc neutrals */
+  --color-primary: #2F5D57;
+  --color-primary-light: #3F7A72;
+  --color-primary-dark: #234541;
+  --color-primary-bg: rgba(47, 93, 87, 0.08);
+  --color-on-primary: #F3F5F2;
 
   --color-bg: #FCFCFC;
   --color-bg-secondary: #F4F4F5;
@@ -136,9 +136,9 @@ body {
   --color-text-muted: #A1A1AA;
   --color-border: #2E2E33;
   --color-border-light: #232327;
-  --color-primary: #FB923C;
+  --color-primary: #7FB8AE;
   --color-on-primary: #18181B;
-  --color-primary-bg: rgba(251, 146, 60, 0.14);
+  --color-primary-bg: rgba(127, 184, 174, 0.14);
   --color-danger: #F87171;
   --color-success: #34D399;
   --color-danger-bg: rgba(239, 68, 68, 0.15);

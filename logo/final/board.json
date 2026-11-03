@@ -1,0 +1,28 @@
+{
+  "brand": "Box",
+  "tagline": "Notes, kept for you",
+  "brief": "A personal note-taking browser extension. It should feel calm and private, with a little playfulness.",
+  "adjectives": ["calm", "private", "playful"],
+  "criteria": "Recognisable at 16 px in the toolbar, works in one colour, feels friendly rather than corporate.",
+  "industry": "consumer-app",
+  "nav": ["Notes", "New", "Settings"],
+  "brand_color": "#2F5D57",
+  "greyscale": false,
+  "designer": "Box",
+  "round": 2,
+  "concepts": [
+    {
+      "name": "Keepsake",
+      "symbol": "keepsake.svg",
+      "lockup": "keepsake-horizontal.svg",
+      "idea": "A soft keepsake jar whose lid seam and slot make a quiet smile.",
+      "rationale": [
+        "A lid you can close: your notes stay private",
+        "The smile keeps it friendly, never corporate",
+        "Soft squircle form, simplified cut for 16 px"
+      ]
+    }
+  ],
+  "recommendation": "Keepsake in deep teal: calm, private and a little playful.",
+  "next_steps": ["Swap the extension icon to the new mark", "Match the popup accent to #2F5D57"]
+}

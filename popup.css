@@ -27,6 +27,9 @@
 }
 
 .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     color: var(--color-text);
