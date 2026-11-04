@@ -99,8 +99,17 @@ function switchTab(tabId) {
 /* ─── Render ─── */
 
 async function render() {
-  const notes = await getNotes();
+  const allNotes = await getNotes();
   const list = document.querySelector("#noteList");
+  const query = document.querySelector("#searchInput").value.trim().toLowerCase();
+  const notes = allNotes.filter((n) =>
+    `${n.title} ${stripHtml(n.body)}`.toLowerCase().includes(query),
+  );
+
+  if (allNotes.length && !notes.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-text">No notes match your search.</div></div>`;
+    return;
+  }
 
   if (notes.length === 0) {
     list.innerHTML = `
@@ -287,6 +296,7 @@ function saveDraft() {
   });
 }
 
+document.querySelector("#searchInput").addEventListener("input", render);
 document.querySelector("#titleInput").addEventListener("input", saveDraft);
 document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
 
