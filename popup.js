@@ -194,23 +194,24 @@ function startNewNote() {
   browser.storage.local.remove(DRAFT_KEY);
 }
 
-// Firefox popups don't support confirm(), so delete needs a second click.
-function deleteNote(btn) {
-  if (!btn.classList.contains("armed")) {
-    btn.classList.add("armed");
-    btn.setAttribute("aria-label", "Click again to delete");
-    btn.title = "Click again to delete";
-    showToast("Click delete again to confirm", "error");
-    setTimeout(() => {
-      btn.classList.remove("armed");
-      btn.setAttribute("aria-label", "Delete note");
-      btn.title = "Delete note";
-    }, 3000);
-    return;
-  }
-  getNotes()
-    .then((notes) => saveNotes(notes.filter((n) => n.id !== btn.dataset.id)))
-    .then(render);
+async function deleteNote(id) {
+  const notes = await getNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return;
+  const [removed] = notes.splice(index, 1);
+  await saveNotes(notes);
+  render();
+
+  showToast("Note deleted", "success", {
+    label: "Undo",
+    onClick: async () => {
+      const current = await getNotes();
+      current.splice(Math.min(index, current.length), 0, removed);
+      await saveNotes(current);
+      render();
+      document.querySelector("#toast").classList.remove("show");
+    },
+  });
 }
 
 /* ─── Event Listeners ─── */
@@ -252,7 +253,7 @@ document.querySelector("#app").addEventListener("click", (e) => {
 
   const deleteBtn = e.target.closest(".delete-btn");
   if (deleteBtn) {
-    deleteNote(deleteBtn);
+    deleteNote(deleteBtn.dataset.id);
     return;
   }
 
@@ -330,11 +331,19 @@ document.querySelector("#noteList").addEventListener("click", (e) => {
   }
 });
 
-function showToast(message, type) {
+function showToast(message, type, action) {
   const toast = document.querySelector("#toast");
   toast.textContent = message;
   toast.className = "notification " + type;
   toast.classList.add("show");
+
+  if (action) {
+    const btn = document.createElement("button");
+    btn.className = "toast-action";
+    btn.textContent = action.label;
+    btn.addEventListener("click", action.onClick, { once: true });
+    toast.append(" ", btn);
+  }
 
   if (window._toastTimer) {
     clearTimeout(window._toastTimer);
@@ -342,7 +351,7 @@ function showToast(message, type) {
 
   window._toastTimer = setTimeout(() => {
     toast.classList.remove("show");
-  }, 3000);
+  }, action ? 5000 : 3000);
 }
 
 function copyTextToClipboard(text) {

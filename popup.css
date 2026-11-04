@@ -370,11 +370,6 @@
 }
 
 .note-card-actions .icon-btn.danger:hover,
-.note-card-actions .icon-btn.armed {
-    color: var(--color-danger);
-    background: var(--color-danger-bg);
-}
-
 .note-title {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
@@ -448,6 +443,19 @@
 
 #toast.notification.show {
     transform: translateY(0);
+    pointer-events: auto;
+}
+
+.toast-action {
+    margin-left: var(--space-sm);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: var(--font-weight-semibold);
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 #toast.notification.success {
