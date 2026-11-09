@@ -49,7 +49,8 @@ function sanitizeHtml(html) {
 function stripHtml(html) {
   const t = document.createElement("template");
   t.innerHTML = html;
-  return t.textContent;
+  // shortcut: drops line breaks, so multi-line notes copy as one line; map <br>/<div>/<li> to "\n" if that matters.
+  return t.content.textContent;
 }
 
 function formatTimestamp(date) {
@@ -170,11 +171,7 @@ async function addNote() {
     });
   }
   await saveNotes(notes);
-
-  setEditing(null);
-  titleInput.value = "";
-  bodyEditor.innerHTML = "";
-  await browser.storage.local.remove(DRAFT_KEY);
+  await startNewNote();
   switchTab("list");
 }
 
@@ -192,7 +189,7 @@ async function editNote(id) {
   setEditing(id);
   document.querySelector("#titleInput").value = note.title;
   document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(note.body === "No content" ? "" : note.body);
-  saveDraft();
+  browser.storage.local.remove(DRAFT_KEY);
   switchTab("new");
 }
 
@@ -200,7 +197,14 @@ function startNewNote() {
   setEditing(null);
   document.querySelector("#titleInput").value = "";
   document.querySelector("#bodyEditor").innerHTML = "";
-  browser.storage.local.remove(DRAFT_KEY);
+  return browser.storage.local.remove(DRAFT_KEY);
+}
+
+// A draft is only written once the user types, so it marks work a composer switch would drop.
+async function confirmDiscard(next) {
+  const { [DRAFT_KEY]: draft } = await browser.storage.local.get(DRAFT_KEY);
+  if (!draft || !(draft.title.trim() || stripHtml(draft.body).trim())) return next();
+  showToast("You have unsaved changes", "error", { label: "Discard", onClick: next });
 }
 
 async function deleteNote(id) {
@@ -218,7 +222,6 @@ async function deleteNote(id) {
       current.splice(Math.min(index, current.length), 0, removed);
       await saveNotes(current);
       render();
-      document.querySelector("#toast").classList.remove("show");
     },
   });
 }
@@ -249,14 +252,17 @@ document.querySelector("#app").addEventListener("click", (e) => {
   const tabBtn = e.target.closest(".nav-item");
   if (tabBtn) {
     // Tapping New while editing starts a fresh note; the saved one is untouched.
-    if (tabBtn.dataset.tab === "new" && editingId) startNewNote();
+    if (tabBtn.dataset.tab === "new" && editingId) confirmDiscard(startNewNote);
     switchTab(tabBtn.dataset.tab);
     return;
   }
 
   const editBtn = e.target.closest(".edit-btn");
   if (editBtn) {
-    editNote(editBtn.dataset.id);
+    const { id } = editBtn.dataset;
+    // Edit on the note already in the composer goes back to it instead of reloading the saved copy.
+    if (id === editingId) switchTab("new");
+    else confirmDiscard(() => editNote(id));
     return;
   }
 
@@ -351,7 +357,14 @@ function showToast(message, type, action) {
     const btn = document.createElement("button");
     btn.className = "toast-action";
     btn.textContent = action.label;
-    btn.addEventListener("click", action.onClick, { once: true });
+    btn.addEventListener(
+      "click",
+      () => {
+        toast.classList.remove("show");
+        action.onClick();
+      },
+      { once: true },
+    );
     toast.append(" ", btn);
   }
 

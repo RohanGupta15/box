@@ -369,7 +369,11 @@
     background: var(--color-bg-tertiary);
 }
 
-.note-card-actions .icon-btn.danger:hover,
+.note-card-actions .icon-btn.danger:hover {
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+}
+
 .note-title {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
