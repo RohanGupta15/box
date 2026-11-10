@@ -327,11 +327,6 @@
     box-shadow: var(--shadow-card);
 }
 
-.note-card.active {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 1px var(--color-primary);
-}
-
 .note-card-header {
     display: flex;
     align-items: center;
@@ -353,8 +348,7 @@
 }
 
 .note-card:hover .note-card-actions,
-.note-card:focus-within .note-card-actions,
-.note-card.active .note-card-actions {
+.note-card:focus-within .note-card-actions {
     opacity: 1;
 }
 
@@ -403,12 +397,6 @@
 
 .note-preview li {
     margin-bottom: 2px;
-}
-
-.note-card.active .note-preview {
-    color: var(--color-text);
-    -webkit-line-clamp: unset;
-    overflow: visible;
 }
 
 /* ─── Empty State ─── */

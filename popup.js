@@ -263,27 +263,25 @@ document.querySelector("#app").addEventListener("click", (e) => {
     return;
   }
 
-  const editBtn = e.target.closest(".edit-btn");
-  if (editBtn) {
-    const { id } = editBtn.dataset;
-    // Edit on the note already in the composer goes back to it instead of reloading the saved copy.
-    if (id === editingId) switchTab("new");
-    else confirmDiscard(() => editNote(id));
-    return;
-  }
-
   const deleteBtn = e.target.closest(".delete-btn");
   if (deleteBtn) {
     deleteNote(deleteBtn.dataset.id);
     return;
   }
 
+  const copyBtn = e.target.closest(".copy-btn");
+  if (copyBtn) {
+    copyContent(copyBtn.dataset.id);
+    return;
+  }
+
+  // Anywhere else on a card, its edit button included, opens the note.
   const card = e.target.closest(".note-card");
   if (card) {
-    document
-      .querySelectorAll(".note-card")
-      .forEach((c) => c.classList.remove("active"));
-    card.classList.add("active");
+    const { id } = card.dataset;
+    // The note already in the composer is reopened as is, not reloaded from its saved copy.
+    if (id === editingId) switchTab("new");
+    else confirmDiscard(() => editNote(id));
   }
 });
 
@@ -291,9 +289,6 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     document.querySelector("#titleInput").blur();
     document.querySelector("#bodyEditor").blur();
-    document
-      .querySelectorAll(".note-card")
-      .forEach((c) => c.classList.remove("active"));
   }
 });
 
@@ -346,11 +341,9 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
   document.querySelector("#bodyEditor").addEventListener(type, updateToolbarState),
 );
 
-document.querySelector("#noteList").addEventListener("click", (e) => {
-  const copyBtn = e.target.closest(".copy-btn");
-  if (copyBtn) {
-    copyContent(copyBtn.dataset.id);
-  }
+// Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
+document.querySelector("#noteList").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.classList.contains("note-card")) e.target.click();
 });
 
 function showToast(message, type, action) {
