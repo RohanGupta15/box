@@ -49,8 +49,14 @@ function sanitizeHtml(html) {
 function stripHtml(html) {
   const t = document.createElement("template");
   t.innerHTML = html;
-  // shortcut: drops line breaks, so multi-line notes copy as one line; map <br>/<div>/<li> to "\n" if that matters.
-  return t.content.textContent;
+  // shortcut: fits the editor's own div/li/br markup; pasted nested blocks may gain or lose a break, upgrade if that shows up.
+  t.content.querySelectorAll("br").forEach((br) => {
+    // A <br> that ends a block only holds an empty line open; any other <br> breaks the line.
+    if (!br.nextSibling && br.parentElement?.matches("div, p, li")) br.remove();
+    else br.replaceWith("\n");
+  });
+  t.content.querySelectorAll("div, p, li").forEach((el) => el.before("\n"));
+  return t.content.textContent.trim();
 }
 
 function formatTimestamp(date) {
@@ -203,7 +209,7 @@ function startNewNote() {
 // A draft is only written once the user types, so it marks work a composer switch would drop.
 async function confirmDiscard(next) {
   const { [DRAFT_KEY]: draft } = await browser.storage.local.get(DRAFT_KEY);
-  if (!draft || !(draft.title.trim() || stripHtml(draft.body).trim())) return next();
+  if (!draft || !(draft.title.trim() || stripHtml(draft.body))) return next();
   showToast("You have unsaved changes", "error", { label: "Discard", onClick: next });
 }
 
