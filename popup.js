@@ -59,6 +59,11 @@ function stripHtml(html) {
   return t.content.textContent.trim();
 }
 
+// Text or an image makes a note body; an emptied editor can keep bare markup like a lone <br>.
+function hasBody(html) {
+  return Boolean(stripHtml(html)) || html.includes("<img");
+}
+
 function formatTimestamp(date) {
   const d = new Date(date);
   const yesterday = new Date();
@@ -159,8 +164,7 @@ async function addNote() {
   const bodyEditor = document.querySelector("#bodyEditor");
   const title = titleInput.value.trim();
   const rawBody = sanitizeHtml(bodyEditor.innerHTML).trim();
-  // An emptied editor can keep markup like a lone <br>, so a body needs actual text.
-  const body = stripHtml(rawBody) ? rawBody : "";
+  const body = hasBody(rawBody) ? rawBody : "";
 
   if (!title && !body) return;
 
@@ -210,7 +214,7 @@ function startNewNote() {
 // A draft is only written once the user types, so it marks work a composer switch would drop.
 async function confirmDiscard(next) {
   const { [DRAFT_KEY]: draft } = await browser.storage.local.get(DRAFT_KEY);
-  if (!draft || !(draft.title.trim() || stripHtml(draft.body))) return next();
+  if (!draft || !(draft.title.trim() || hasBody(draft.body))) return next();
   showToast("You have unsaved changes", "error", { label: "Discard", onClick: next });
 }
 
@@ -308,10 +312,10 @@ document.querySelector("#searchInput").addEventListener("input", render);
 document.querySelector("#titleInput").addEventListener("input", saveDraft);
 document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
 
-// :empty misses an emptied editor that still holds markup like a lone <br>; judge by text, but an empty list still shows its bullet.
+// :empty misses an emptied editor that still holds markup like a lone <br>; an empty list still shows its bullet, so it isn't blank.
 function markBlankEditor() {
   const editor = document.querySelector("#bodyEditor");
-  editor.classList.toggle("blank", !stripHtml(editor.innerHTML) && !editor.querySelector("ul, ol"));
+  editor.classList.toggle("blank", !hasBody(editor.innerHTML) && !editor.querySelector("ul, ol"));
 }
 new MutationObserver(markBlankEditor).observe(document.querySelector("#bodyEditor"), {
   childList: true,
