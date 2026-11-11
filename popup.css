@@ -253,7 +253,8 @@
     color: var(--color-text);
 }
 
-.editor-body:empty:before {
+.editor-body:empty:before,
+.editor-body.blank:before {
     content: attr(data-placeholder);
     color: var(--color-text-muted);
     pointer-events: none;

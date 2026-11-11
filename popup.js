@@ -159,7 +159,8 @@ async function addNote() {
   const bodyEditor = document.querySelector("#bodyEditor");
   const title = titleInput.value.trim();
   const rawBody = sanitizeHtml(bodyEditor.innerHTML).trim();
-  const body = rawBody || "";
+  // An emptied editor can keep markup like a lone <br>, so a body needs actual text.
+  const body = stripHtml(rawBody) ? rawBody : "";
 
   if (!title && !body) return;
 
@@ -306,6 +307,17 @@ function saveDraft() {
 document.querySelector("#searchInput").addEventListener("input", render);
 document.querySelector("#titleInput").addEventListener("input", saveDraft);
 document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
+
+// :empty misses an emptied editor that still holds markup like a lone <br>; judge by text, but an empty list still shows its bullet.
+function markBlankEditor() {
+  const editor = document.querySelector("#bodyEditor");
+  editor.classList.toggle("blank", !stripHtml(editor.innerHTML) && !editor.querySelector("ul, ol"));
+}
+new MutationObserver(markBlankEditor).observe(document.querySelector("#bodyEditor"), {
+  childList: true,
+  subtree: true,
+  characterData: true,
+});
 
 browser.storage.local.get(DRAFT_KEY).then(({ [DRAFT_KEY]: draft }) => {
   if (!draft) return;
