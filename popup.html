@@ -65,12 +65,19 @@
                 <!-- Panel: List of Notes -->
                 <div id="panel-list" class="tab-panel">
                     <h2 class="section-title">Notes</h2>
+                    <input
+                        type="search"
+                        class="note-title-input search-input"
+                        id="searchInput"
+                        placeholder="Search notes"
+                        aria-label="Search notes"
+                    />
                     <div class="note-list" id="noteList"></div>
                 </div>
 
                 <!-- Panel: New Note Form -->
                 <div id="panel-new" class="tab-panel active">
-                    <h2 class="section-title">New Note</h2>
+                    <h2 class="section-title" id="composerTitle">New Note</h2>
                     <div class="note-composer">
                         <input
                             type="text"
@@ -112,7 +119,7 @@
                         <div class="composer-actions">
                             <button class="btn-primary" id="saveBtn">
                                 <svg width="16" height="16"><use href="icons/sprite.svg#icon-upload"/></svg>
-                                Save Note
+                                <span id="saveLabel">Save Note</span>
                             </button>
                         </div>
                     </div>

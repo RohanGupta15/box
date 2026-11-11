@@ -1,5 +1,6 @@
 const STORAGE_KEY = "box-notes";
 const THEME_KEY = "box-theme";
+const DRAFT_KEY = "box-draft";
 
 const SPRITE_PATH = "icons/sprite.svg";
 
@@ -48,7 +49,14 @@ function sanitizeHtml(html) {
 function stripHtml(html) {
   const t = document.createElement("template");
   t.innerHTML = html;
-  return t.textContent;
+  // shortcut: fits the editor's own div/li/br markup; pasted nested blocks may gain or lose a break, upgrade if that shows up.
+  t.content.querySelectorAll("br").forEach((br) => {
+    // A <br> that ends a block only holds an empty line open; any other <br> breaks the line.
+    if (!br.nextSibling && br.parentElement?.matches("div, p, li")) br.remove();
+    else br.replaceWith("\n");
+  });
+  t.content.querySelectorAll("div, p, li").forEach((el) => el.before("\n"));
+  return t.content.textContent.trim();
 }
 
 function formatTimestamp(date) {
@@ -98,8 +106,17 @@ function switchTab(tabId) {
 /* ─── Render ─── */
 
 async function render() {
-  const notes = await getNotes();
+  const allNotes = await getNotes();
   const list = document.querySelector("#noteList");
+  const query = document.querySelector("#searchInput").value.trim().toLowerCase();
+  const notes = allNotes.filter((n) =>
+    `${n.title} ${stripHtml(n.body)}`.toLowerCase().includes(query),
+  );
+
+  if (allNotes.length && !notes.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-text">No notes match your search.</div></div>`;
+    return;
+  }
 
   if (notes.length === 0) {
     list.innerHTML = `
@@ -119,6 +136,9 @@ async function render() {
           <div class="note-card-actions">
             <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note" aria-label="Delete note">
               ${iconUse("delete", 14)}
+            </button>
+            <button class="icon-btn edit-btn" data-id="${note.id}" title="Edit note" aria-label="Edit note">
+              ${iconUse("reading", 14)}
             </button>
             <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note" aria-label="Copy note">
               ${iconUse("copy", 14)}
@@ -144,36 +164,72 @@ async function addNote() {
   if (!title && !body) return;
 
   const notes = await getNotes();
-  notes.unshift({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    title: title || "Untitled",
-    body: body || "No content",
-    createdAt: new Date().toISOString(),
-  });
+  const existing = notes.find((n) => n.id === editingId);
+  if (existing) {
+    existing.title = title || "Untitled";
+    existing.body = body || "No content";
+  } else {
+    notes.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title: title || "Untitled",
+      body: body || "No content",
+      createdAt: new Date().toISOString(),
+    });
+  }
   await saveNotes(notes);
-
-  titleInput.value = "";
-  bodyEditor.innerHTML = "";
+  await startNewNote();
   switchTab("list");
 }
 
-// Firefox popups don't support confirm(), so delete needs a second click.
-function deleteNote(btn) {
-  if (!btn.classList.contains("armed")) {
-    btn.classList.add("armed");
-    btn.setAttribute("aria-label", "Click again to delete");
-    btn.title = "Click again to delete";
-    showToast("Click delete again to confirm", "error");
-    setTimeout(() => {
-      btn.classList.remove("armed");
-      btn.setAttribute("aria-label", "Delete note");
-      btn.title = "Delete note";
-    }, 3000);
-    return;
-  }
-  getNotes()
-    .then((notes) => saveNotes(notes.filter((n) => n.id !== btn.dataset.id)))
-    .then(render);
+let editingId = null;
+
+function setEditing(id) {
+  editingId = id;
+  document.querySelector("#composerTitle").textContent = id ? "Edit Note" : "New Note";
+  document.querySelector("#saveLabel").textContent = id ? "Save Changes" : "Save Note";
+}
+
+async function editNote(id) {
+  const note = (await getNotes()).find((n) => n.id === id);
+  if (!note) return;
+  setEditing(id);
+  document.querySelector("#titleInput").value = note.title;
+  document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(note.body === "No content" ? "" : note.body);
+  browser.storage.local.remove(DRAFT_KEY);
+  switchTab("new");
+}
+
+function startNewNote() {
+  setEditing(null);
+  document.querySelector("#titleInput").value = "";
+  document.querySelector("#bodyEditor").innerHTML = "";
+  return browser.storage.local.remove(DRAFT_KEY);
+}
+
+// A draft is only written once the user types, so it marks work a composer switch would drop.
+async function confirmDiscard(next) {
+  const { [DRAFT_KEY]: draft } = await browser.storage.local.get(DRAFT_KEY);
+  if (!draft || !(draft.title.trim() || stripHtml(draft.body))) return next();
+  showToast("You have unsaved changes", "error", { label: "Discard", onClick: next });
+}
+
+async function deleteNote(id) {
+  const notes = await getNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return;
+  const [removed] = notes.splice(index, 1);
+  await saveNotes(notes);
+  render();
+
+  showToast("Note deleted", "success", {
+    label: "Undo",
+    onClick: async () => {
+      const current = await getNotes();
+      current.splice(Math.min(index, current.length), 0, removed);
+      await saveNotes(current);
+      render();
+    },
+  });
 }
 
 /* ─── Event Listeners ─── */
@@ -201,22 +257,31 @@ document.querySelector("#app").addEventListener("click", (e) => {
 
   const tabBtn = e.target.closest(".nav-item");
   if (tabBtn) {
+    // Tapping New while editing starts a fresh note; the saved one is untouched.
+    if (tabBtn.dataset.tab === "new" && editingId) confirmDiscard(startNewNote);
     switchTab(tabBtn.dataset.tab);
     return;
   }
 
   const deleteBtn = e.target.closest(".delete-btn");
   if (deleteBtn) {
-    deleteNote(deleteBtn);
+    deleteNote(deleteBtn.dataset.id);
     return;
   }
 
+  const copyBtn = e.target.closest(".copy-btn");
+  if (copyBtn) {
+    copyContent(copyBtn.dataset.id);
+    return;
+  }
+
+  // Anywhere else on a card, its edit button included, opens the note.
   const card = e.target.closest(".note-card");
   if (card) {
-    document
-      .querySelectorAll(".note-card")
-      .forEach((c) => c.classList.remove("active"));
-    card.classList.add("active");
+    const { id } = card.dataset;
+    // The note already in the composer is reopened as is, not reloaded from its saved copy.
+    if (id === editingId) switchTab("new");
+    else confirmDiscard(() => editNote(id));
   }
 });
 
@@ -224,10 +289,29 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     document.querySelector("#titleInput").blur();
     document.querySelector("#bodyEditor").blur();
-    document
-      .querySelectorAll(".note-card")
-      .forEach((c) => c.classList.remove("active"));
   }
+});
+
+// The popup closes on any outside click, so keep the unsaved note in storage.
+function saveDraft() {
+  browser.storage.local.set({
+    [DRAFT_KEY]: {
+      title: document.querySelector("#titleInput").value,
+      body: document.querySelector("#bodyEditor").innerHTML,
+      editingId,
+    },
+  });
+}
+
+document.querySelector("#searchInput").addEventListener("input", render);
+document.querySelector("#titleInput").addEventListener("input", saveDraft);
+document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
+
+browser.storage.local.get(DRAFT_KEY).then(({ [DRAFT_KEY]: draft }) => {
+  if (!draft) return;
+  setEditing(draft.editingId || null);
+  document.querySelector("#titleInput").value = draft.title;
+  document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(draft.body);
 });
 
 document.querySelector("#saveBtn").addEventListener("click", (e) => {
@@ -257,18 +341,31 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
   document.querySelector("#bodyEditor").addEventListener(type, updateToolbarState),
 );
 
-document.querySelector("#noteList").addEventListener("click", (e) => {
-  const copyBtn = e.target.closest(".copy-btn");
-  if (copyBtn) {
-    copyContent(copyBtn.dataset.id);
-  }
+// Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
+document.querySelector("#noteList").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.classList.contains("note-card")) e.target.click();
 });
 
-function showToast(message, type) {
+function showToast(message, type, action) {
   const toast = document.querySelector("#toast");
   toast.textContent = message;
   toast.className = "notification " + type;
   toast.classList.add("show");
+
+  if (action) {
+    const btn = document.createElement("button");
+    btn.className = "toast-action";
+    btn.textContent = action.label;
+    btn.addEventListener(
+      "click",
+      () => {
+        toast.classList.remove("show");
+        action.onClick();
+      },
+      { once: true },
+    );
+    toast.append(" ", btn);
+  }
 
   if (window._toastTimer) {
     clearTimeout(window._toastTimer);
@@ -276,7 +373,7 @@ function showToast(message, type) {
 
   window._toastTimer = setTimeout(() => {
     toast.classList.remove("show");
-  }, 3000);
+  }, action ? 5000 : 3000);
 }
 
 function copyTextToClipboard(text) {
@@ -287,7 +384,7 @@ async function copyContent(id) {
   const note = (await getNotes()).find((n) => n.id === id);
   if (!note) return;
 
-  copyTextToClipboard(stripHtml(note.body))
+  copyTextToClipboard(`${note.title}\n\n${stripHtml(note.body)}`)
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
