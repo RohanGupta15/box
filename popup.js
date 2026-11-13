@@ -275,6 +275,14 @@ document.querySelector("#app").addEventListener("click", (e) => {
     return;
   }
 
+  // A link pasted into a note opens in a new tab instead of loading inside the popup.
+  const link = e.target.closest(".note-preview a[href]");
+  if (link) {
+    e.preventDefault();
+    browser.tabs.create({ url: link.href }).catch(() => showToast("Couldn't open that link", "error"));
+    return;
+  }
+
   // Anywhere else on a card, its edit button included, opens the note.
   const card = e.target.closest(".note-card");
   if (card) {
