@@ -6,9 +6,18 @@ const SPRITE_PATH = "icons/sprite.svg";
 
 /* ─── Helpers ─── */
 
+// Older versions saved the "Untitled" / "No content" placeholders as if the user had typed them.
+function dropOldPlaceholders(note) {
+  return {
+    ...note,
+    title: note.title === "Untitled" ? "" : note.title,
+    body: note.body === "No content" ? "" : note.body,
+  };
+}
+
 async function getNotes() {
   const stored = await browser.storage.local.get(STORAGE_KEY);
-  if (stored[STORAGE_KEY]) return stored[STORAGE_KEY];
+  if (stored[STORAGE_KEY]) return stored[STORAGE_KEY].map(dropOldPlaceholders);
 
   // One-time migration from the old localStorage copy.
   try {
@@ -17,7 +26,7 @@ async function getNotes() {
       await saveNotes(legacy);
       localStorage.removeItem(STORAGE_KEY);
     }
-    return legacy;
+    return legacy.map(dropOldPlaceholders);
   } catch {
     return [];
   }
@@ -171,13 +180,13 @@ async function addNote() {
   const notes = await getNotes();
   const existing = notes.find((n) => n.id === editingId);
   if (existing) {
-    existing.title = title || "Untitled";
-    existing.body = body || "No content";
+    existing.title = title;
+    existing.body = body;
   } else {
     notes.unshift({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      title: title || "Untitled",
-      body: body || "No content",
+      title,
+      body,
       createdAt: new Date().toISOString(),
     });
   }
@@ -199,7 +208,7 @@ async function editNote(id) {
   if (!note) return;
   setEditing(id);
   document.querySelector("#titleInput").value = note.title;
-  document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(note.body === "No content" ? "" : note.body);
+  document.querySelector("#bodyEditor").innerHTML = sanitizeHtml(note.body);
   browser.storage.local.remove(DRAFT_KEY);
   switchTab("new");
 }
@@ -410,7 +419,7 @@ async function copyContent(id) {
   const note = (await getNotes()).find((n) => n.id === id);
   if (!note) return;
 
-  copyTextToClipboard(`${note.title}\n\n${stripHtml(note.body)}`)
+  copyTextToClipboard([note.title, stripHtml(note.body)].filter(Boolean).join("\n\n"))
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
