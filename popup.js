@@ -279,7 +279,9 @@ document.querySelector("#app").addEventListener("click", (e) => {
   const link = e.target.closest(".note-preview a[href]");
   if (link) {
     e.preventDefault();
-    browser.tabs.create({ url: link.href }).catch(() => showToast("Couldn't open that link", "error"));
+    // Web links only: a disguised scheme can slip past sanitizeHtml, and relative links point into the extension.
+    if (!["http:", "https:"].includes(link.protocol)) showToast("Only web links can open from a note", "error");
+    else browser.tabs.create({ url: link.href }).catch(() => showToast("Couldn't open that link", "error"));
     return;
   }
 
