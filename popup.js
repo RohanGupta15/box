@@ -458,3 +458,17 @@ document.querySelector("#theme-btn").addEventListener("click", () => {
   saveTheme(newTheme);
   showToast(`Switched to ${newTheme} mode`, "success");
 });
+
+// A data: link rather than a blob URL, so the download survives Firefox closing the popup to show it.
+document.querySelector("#export-btn").addEventListener("click", async () => {
+  const notes = await getNotes();
+  if (!notes.length) return showToast("No notes to export", "error");
+  const link = document.createElement("a");
+  link.href = `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(notes, null, 2))}`;
+  const d = new Date();
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  link.download = `box-notes-${day}.json`;
+  document.body.append(link); // attached first: older Firefox ignored clicks on detached links
+  link.click();
+  link.remove();
+});
