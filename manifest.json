@@ -13,6 +13,11 @@
       "96": "icons/icon.svg"
     }
   },
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": { "default": "Alt+Shift+N" }
+    }
+  },
   "icons": {
     "16": "icons/icon.svg",
     "48": "icons/icon.svg",
