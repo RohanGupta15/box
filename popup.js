@@ -280,6 +280,16 @@ document.querySelector("#app").addEventListener("click", (e) => {
     return;
   }
 
+  // A link pasted into a note opens in a new tab instead of loading inside the popup.
+  const link = e.target.closest(".note-preview a[href]");
+  if (link) {
+    e.preventDefault();
+    // Web links only: a disguised scheme can slip past sanitizeHtml, and relative links point into the extension.
+    if (!["http:", "https:"].includes(link.protocol)) showToast("Only web links can open from a note", "error");
+    else browser.tabs.create({ url: link.href }).catch(() => showToast("Couldn't open that link", "error"));
+    return;
+  }
+
   // Anywhere else on a card, its edit button included, opens the note.
   const card = e.target.closest(".note-card");
   if (card) {
