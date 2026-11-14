@@ -358,7 +358,10 @@ function updateToolbarState() {
   document.querySelectorAll("[data-cmd]").forEach((btn) => {
     const cmd = btn.dataset.cmd;
     try {
-      btn.classList.toggle("active", document.queryCommandState(cmd));
+      const on = document.queryCommandState(cmd);
+      btn.classList.toggle("active", on);
+      // Only the on/off buttons carry aria-pressed; Remove formatting is a one-shot action.
+      if (btn.hasAttribute("aria-pressed")) btn.setAttribute("aria-pressed", on);
     } catch {}
   });
 }
