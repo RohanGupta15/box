@@ -452,6 +452,12 @@
     font-weight: var(--font-weight-semibold);
     text-decoration: underline;
     cursor: pointer;
+    transition: visibility var(--transition-normal);
+}
+
+/* Once the toast is down, its Undo/Discard can't be reached with Tab; the live region itself stays for screen readers. */
+#toast.notification:not(.show) .toast-action {
+    visibility: hidden;
 }
 
 #toast.notification.success {
