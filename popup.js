@@ -336,7 +336,11 @@ function markBlankEditor() {
   const editor = document.querySelector("#bodyEditor");
   editor.classList.toggle("blank", !hasBody(editor.innerHTML) && !editor.querySelector("ul, ol"));
 }
-new MutationObserver(markBlankEditor).observe(document.querySelector("#bodyEditor"), {
+// Also refresh the toolbar: code swaps the editor's content (edit, new note, draft) without a key or click.
+new MutationObserver(() => {
+  markBlankEditor();
+  updateToolbarState();
+}).observe(document.querySelector("#bodyEditor"), {
   childList: true,
   subtree: true,
   characterData: true,
