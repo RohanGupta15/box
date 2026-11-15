@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Import notes · Box</title>
+        <link rel="stylesheet" href="design-system.css" />
+        <link rel="stylesheet" href="popup.css" />
+        <style>
+            .import {
+                padding-bottom: var(--space-lg);
+            }
+
+            .import-text {
+                padding: 0 var(--space-lg) var(--space-md);
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+            }
+
+            .import .btn-primary {
+                margin: 0 var(--space-lg);
+            }
+
+            .import-status:not(:empty) {
+                padding: var(--space-md) var(--space-lg) 0;
+                font-size: var(--font-size-sm);
+            }
+        </style>
+    </head>
+    <body>
+        <main class="import">
+            <h1 class="section-title">Import notes</h1>
+            <p class="import-text">
+                Choose a Box backup file (.json). Notes that are already in Box stay as they are, so
+                nothing is duplicated.
+            </p>
+            <button class="btn-primary" id="chooseBtn">
+                <svg width="16" height="16"><use href="icons/sprite.svg#icon-import" /></svg>
+                Choose backup file
+            </button>
+            <input type="file" id="backupFile" accept=".json,application/json" hidden />
+            <p class="import-status" id="importStatus" role="status" aria-live="polite"></p>
+        </main>
+
+        <script src="import.js"></script>
+    </body>
+</html>

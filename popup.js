@@ -472,3 +472,11 @@ document.querySelector("#export-btn").addEventListener("click", async () => {
   link.click();
   link.remove();
 });
+
+// Firefox closes the popup when a file picker opens, so the backup is picked in a small window of its own.
+document.querySelector("#import-btn").addEventListener("click", () => {
+  browser.windows
+    .create({ url: "import.html", type: "popup", width: 400, height: 320 })
+    .then(() => window.close())
+    .catch(() => showToast("Couldn't open the import window", "error"));
+});
