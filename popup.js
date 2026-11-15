@@ -474,7 +474,8 @@ document.querySelector("#export-btn").addEventListener("click", async () => {
 });
 
 // Firefox closes the popup when a file picker opens, so the backup is picked in a small window of its own.
-document.querySelector("#import-btn").addEventListener("click", () => {
+document.querySelector("#import-btn").addEventListener("click", async () => {
+  await getNotes(); // runs the one-time move of very old notes out of localStorage before import.js writes
   browser.windows
     .create({ url: "import.html", type: "popup", width: 400, height: 320 })
     .then(() => window.close())

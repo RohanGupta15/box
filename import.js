@@ -6,7 +6,6 @@ document.body.classList.toggle("dark", theme === "dark");
 
 // Keep only well-formed notes whose id isn't in Box yet, so importing never duplicates or overwrites a note.
 function mergeBackup(existing, backup) {
-  if (!Array.isArray(backup)) throw new Error("not a Box backup");
   const ids = new Set(existing.map((n) => n.id));
   const added = [];
   let skipped = 0;
@@ -18,6 +17,7 @@ function mergeBackup(existing, backup) {
       n.id !== "" &&
       typeof n.title === "string" &&
       typeof n.body === "string" &&
+      typeof n.createdAt === "string" &&
       !Number.isNaN(Date.parse(n.createdAt));
     if (!valid) invalid++;
     else if (ids.has(n.id)) skipped++;
@@ -41,15 +41,20 @@ fileInput.addEventListener("change", async () => {
   fileInput.value = ""; // so choosing the same file again still fires change
   if (!file) return;
 
-  const stored = (await browser.storage.local.get(STORAGE_KEY))[STORAGE_KEY] ?? [];
-  let result;
+  let backup;
   try {
-    result = mergeBackup(stored, JSON.parse(await file.text()));
+    backup = JSON.parse(await file.text());
+    if (!Array.isArray(backup)) throw new Error("not a list of notes");
   } catch {
     status.textContent = "That file isn't a Box backup, so nothing was imported.";
     return;
   }
+
+  let result;
   try {
+    // Read the notes only now, right before writing, so the merge starts from the latest ones.
+    const stored = (await browser.storage.local.get(STORAGE_KEY))[STORAGE_KEY] ?? [];
+    result = mergeBackup(stored, backup);
     await browser.storage.local.set({ [STORAGE_KEY]: result.notes });
   } catch {
     status.textContent = "Couldn't save the imported notes. Your existing notes are unchanged.";
