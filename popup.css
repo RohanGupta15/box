@@ -87,7 +87,6 @@
     gap: var(--space-2xs);
     padding: var(--space-sm) var(--space-md);
     border-bottom: 1px solid var(--color-border);
-    overflow-x: auto;
     background-color: var(--color-bg);
 }
 
@@ -117,6 +116,7 @@
     color: var(--color-primary);
 }
 
+/* Sits on the tab bar's bottom border (8px padding + 1px), so .nav must not clip its overflow. */
 .nav-item.active::after {
     content: "";
     position: absolute;
