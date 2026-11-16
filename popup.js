@@ -102,6 +102,7 @@ function switchTab(tabId) {
     const isActive = item.dataset.tab === tabId;
     item.classList.toggle("active", isActive);
     item.setAttribute("aria-selected", isActive);
+    item.tabIndex = isActive ? 0 : -1; // only the selected tab is in the Tab order; arrows reach the other
   });
 
   document.querySelectorAll(".tab-panel").forEach((panel) => {
@@ -382,6 +383,39 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
 ["mouseup", "keyup"].forEach((type) =>
   document.querySelector("#bodyEditor").addEventListener(type, updateToolbarState),
 );
+
+/* ─── Arrow keys in the tabs and toolbar ─── */
+
+// Where Left/Right/Home/End move focus in a row of n items, wrapping around; null for any other key.
+function roveIndex(key, i, n) {
+  if (key === "Home") return 0;
+  if (key === "End") return n - 1;
+  const step = { ArrowLeft: -1, ArrowRight: 1 }[key];
+  return step ? (i + step + n) % n : null;
+}
+
+// Roving tabindex: one item of the group is in the Tab order, the last one focused; arrows reach the rest.
+function rove(group, selector, onMove) {
+  group.addEventListener("focusin", (e) => {
+    if (!e.target.matches(selector)) return;
+    group.querySelectorAll(selector).forEach((item) => (item.tabIndex = item === e.target ? 0 : -1));
+  });
+  group.addEventListener("keydown", (e) => {
+    if (!e.target.matches(selector)) return;
+    const items = [...group.querySelectorAll(selector)];
+    const next = roveIndex(e.key, items.indexOf(e.target), items.length);
+    if (next === null) return;
+    e.preventDefault();
+    items[next].focus();
+    onMove?.(items[next]);
+  });
+}
+
+rove(document.querySelector("#toolbar"), ".tb-btn");
+rove(document.querySelector(".nav"), ".nav-item", (tab) => {
+  tab.click(); // a tab is selected as soon as it has focus, through the same path as a click
+  tab.focus(); // switching to New focuses the title box; keep focus on the tab
+});
 
 // Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
 document.querySelector("#noteList").addEventListener("keydown", (e) => {
