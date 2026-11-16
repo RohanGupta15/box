@@ -14,7 +14,7 @@ function mergeBackup(existing, backup) {
     const valid =
       n &&
       typeof n.id === "string" &&
-      n.id !== "" &&
+      /^[a-z0-9]+$/.test(n.id) && // Box only makes a-z0-9 ids; other text could inject markup through the list's data-id attributes
       typeof n.title === "string" &&
       typeof n.body === "string" &&
       typeof n.createdAt === "string" &&
