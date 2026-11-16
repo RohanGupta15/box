@@ -1,0 +1,21 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  web-ext-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # Mozilla's extension linter. logo/ and the Markdown files are design and repo docs, not part of
+      # the extension. Warnings are reported without failing the check; errors fail it.
+      - run: npx --yes web-ext@10 lint --ignore-files "logo/**" "*.md"
