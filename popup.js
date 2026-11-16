@@ -394,12 +394,8 @@ function roveIndex(key, i, n) {
   return step ? (i + step + n) % n : null;
 }
 
-// Roving tabindex: one item of the group is in the Tab order, the last one focused; arrows reach the rest.
-function rove(group, selector, onMove) {
-  group.addEventListener("focusin", (e) => {
-    if (!e.target.matches(selector)) return;
-    group.querySelectorAll(selector).forEach((item) => (item.tabIndex = item === e.target ? 0 : -1));
-  });
+// Arrow keys move focus along a row of items; each group's tabIndex decides where Tab lands.
+function arrowKeys(group, selector) {
   group.addEventListener("keydown", (e) => {
     if (!e.target.matches(selector)) return;
     const items = [...group.querySelectorAll(selector)];
@@ -407,14 +403,19 @@ function rove(group, selector, onMove) {
     if (next === null) return;
     e.preventDefault();
     items[next].focus();
-    onMove?.(items[next]);
   });
 }
 
-rove(document.querySelector("#toolbar"), ".tb-btn");
-rove(document.querySelector(".nav"), ".nav-item", (tab) => {
-  tab.click(); // a tab is selected as soon as it has focus, through the same path as a click
-  tab.focus(); // switching to New focuses the title box; keep focus on the tab
+// Tabs: arrows only move focus and Enter or Space selects, so passing over New doesn't trigger
+// the unsaved-changes prompt; switchTab keeps the selected tab in the Tab order.
+arrowKeys(document.querySelector(".nav"), ".nav-item");
+
+// Toolbar: Tab comes back to the button used last.
+const toolbar = document.querySelector("#toolbar");
+arrowKeys(toolbar, ".tb-btn");
+toolbar.addEventListener("focusin", (e) => {
+  if (!e.target.matches(".tb-btn")) return;
+  toolbar.querySelectorAll(".tb-btn").forEach((btn) => (btn.tabIndex = btn === e.target ? 0 : -1));
 });
 
 // Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
