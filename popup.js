@@ -102,6 +102,7 @@ function switchTab(tabId) {
     const isActive = item.dataset.tab === tabId;
     item.classList.toggle("active", isActive);
     item.setAttribute("aria-selected", isActive);
+    item.tabIndex = isActive ? 0 : -1; // only the selected tab is in the Tab order; arrows reach the other
   });
 
   document.querySelectorAll(".tab-panel").forEach((panel) => {
@@ -336,7 +337,11 @@ function markBlankEditor() {
   const editor = document.querySelector("#bodyEditor");
   editor.classList.toggle("blank", !hasBody(editor.innerHTML) && !editor.querySelector("ul, ol"));
 }
-new MutationObserver(markBlankEditor).observe(document.querySelector("#bodyEditor"), {
+// Also refresh the toolbar: code swaps the editor's content (edit, new note, draft) without a key or click.
+new MutationObserver(() => {
+  markBlankEditor();
+  updateToolbarState();
+}).observe(document.querySelector("#bodyEditor"), {
   childList: true,
   subtree: true,
   characterData: true,
@@ -358,7 +363,10 @@ function updateToolbarState() {
   document.querySelectorAll("[data-cmd]").forEach((btn) => {
     const cmd = btn.dataset.cmd;
     try {
-      btn.classList.toggle("active", document.queryCommandState(cmd));
+      const on = document.queryCommandState(cmd);
+      btn.classList.toggle("active", on);
+      // Only the on/off buttons carry aria-pressed; Remove formatting is a one-shot action.
+      if (btn.hasAttribute("aria-pressed")) btn.setAttribute("aria-pressed", on);
     } catch {}
   });
 }
@@ -375,6 +383,40 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
 ["mouseup", "keyup"].forEach((type) =>
   document.querySelector("#bodyEditor").addEventListener(type, updateToolbarState),
 );
+
+/* ─── Arrow keys in the tabs and toolbar ─── */
+
+// Where Left/Right/Home/End move focus in a row of n items, wrapping around; null for any other key.
+function roveIndex(key, i, n) {
+  if (key === "Home") return 0;
+  if (key === "End") return n - 1;
+  const step = { ArrowLeft: -1, ArrowRight: 1 }[key];
+  return step ? (i + step + n) % n : null;
+}
+
+// Arrow keys move focus along a row of items; each group's tabIndex decides where Tab lands.
+function arrowKeys(group, selector) {
+  group.addEventListener("keydown", (e) => {
+    if (!e.target.matches(selector)) return;
+    const items = [...group.querySelectorAll(selector)];
+    const next = roveIndex(e.key, items.indexOf(e.target), items.length);
+    if (next === null) return;
+    e.preventDefault();
+    items[next].focus();
+  });
+}
+
+// Tabs: arrows only move focus and Enter or Space selects, so passing over New doesn't trigger
+// the unsaved-changes prompt; switchTab keeps the selected tab in the Tab order.
+arrowKeys(document.querySelector(".nav"), ".nav-item");
+
+// Toolbar: Tab comes back to the button used last.
+const toolbar = document.querySelector("#toolbar");
+arrowKeys(toolbar, ".tb-btn");
+toolbar.addEventListener("focusin", (e) => {
+  if (!e.target.matches(".tb-btn")) return;
+  toolbar.querySelectorAll(".tb-btn").forEach((btn) => (btn.tabIndex = btn === e.target ? 0 : -1));
+});
 
 // Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
 document.querySelector("#noteList").addEventListener("keydown", (e) => {
