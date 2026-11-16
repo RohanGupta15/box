@@ -25,7 +25,8 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "notes@rohan.com"
+      "id": "notes@rohan.com",
+      "data_collection_permissions": { "required": ["none"] }
     }
   }
 }
