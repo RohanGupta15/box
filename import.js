@@ -6,6 +6,7 @@ document.body.classList.toggle("dark", theme === "dark");
 
 // Keep only well-formed notes whose id isn't in Box yet, so importing never duplicates or overwrites a note.
 function mergeBackup(existing, backup) {
+  const isDate = (v) => typeof v === "string" && !Number.isNaN(Date.parse(v));
   const ids = new Set(existing.map((n) => n.id));
   const added = [];
   let skipped = 0;
@@ -17,13 +18,14 @@ function mergeBackup(existing, backup) {
       /^[a-z0-9]+$/.test(n.id) && // Box only makes a-z0-9 ids; other text could inject markup through the list's data-id attributes
       typeof n.title === "string" &&
       typeof n.body === "string" &&
-      typeof n.createdAt === "string" &&
-      !Number.isNaN(Date.parse(n.createdAt));
+      isDate(n.createdAt);
     if (!valid) invalid++;
     else if (ids.has(n.id)) skipped++;
     else {
       ids.add(n.id);
-      added.push({ id: n.id, title: n.title, body: n.body, createdAt: new Date(n.createdAt).toISOString() });
+      const note = { id: n.id, title: n.title, body: n.body, createdAt: new Date(n.createdAt).toISOString() };
+      if (isDate(n.updatedAt)) note.updatedAt = new Date(n.updatedAt).toISOString(); // optional: a bad one is dropped, not the note
+      added.push(note);
     }
   }
   // Newest first, like the list; ISO dates sort correctly as text.
