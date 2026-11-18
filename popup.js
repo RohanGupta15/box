@@ -91,6 +91,12 @@ function formatTimestamp(date) {
   );
 }
 
+// "Edited today at 14:05" once a note has been changed, otherwise when it was written.
+function noteTimestamp(note) {
+  if (!note.updatedAt) return formatTimestamp(note.createdAt);
+  return `Edited ${formatTimestamp(note.updatedAt).replace(/^(Today|Yesterday)/, (day) => day.toLowerCase())}`;
+}
+
 function iconUse(name, size) {
   return `<svg width="${size}" height="${size}"><use href="${SPRITE_PATH}#icon-${name}"/></svg>`;
 }
@@ -146,7 +152,7 @@ async function render() {
       (note) => `
       <div class="note-card" data-id="${note.id}" tabindex="0">
         <div class="note-card-header">
-          <span class="note-timestamp">${formatTimestamp(note.createdAt)}</span>
+          <span class="note-timestamp">${noteTimestamp(note)}</span>
           <div class="note-card-actions">
             <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note" aria-label="Delete note">
               ${iconUse("delete", 14)}
@@ -180,6 +186,8 @@ async function addNote() {
   const notes = await getNotes();
   const existing = notes.find((n) => n.id === editingId);
   if (existing) {
+    // The editor tidies stored HTML (e.g. & to &amp;), so compare the tidied form or an unchanged re-save counts as an edit.
+    if (existing.title !== title || sanitizeHtml(existing.body).trim() !== body) existing.updatedAt = new Date().toISOString();
     existing.title = title;
     existing.body = body;
   } else {
