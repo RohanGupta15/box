@@ -186,7 +186,8 @@ async function addNote() {
   const notes = await getNotes();
   const existing = notes.find((n) => n.id === editingId);
   if (existing) {
-    if (existing.title !== title || existing.body !== body) existing.updatedAt = new Date().toISOString();
+    // The editor tidies stored HTML (e.g. & to &amp;), so compare the tidied form or an unchanged re-save counts as an edit.
+    if (existing.title !== title || sanitizeHtml(existing.body).trim() !== body) existing.updatedAt = new Date().toISOString();
     existing.title = title;
     existing.body = body;
   } else {
