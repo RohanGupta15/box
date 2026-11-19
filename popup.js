@@ -48,7 +48,9 @@ function sanitizeHtml(html) {
   t.content.querySelectorAll("script, style, iframe, object, embed").forEach((el) => el.remove());
   t.content.querySelectorAll("*").forEach((el) => {
     [...el.attributes].forEach((attr) => {
-      const unsafeUrl = /^\s*(javascript|data|vbscript):/i.test(attr.value);
+      // Pasted screenshots arrive as data: images, and an <img> can't run script; data: stays blocked everywhere else.
+      const pastedImage = el.matches("img") && attr.name === "src" && /^\s*data:image\//i.test(attr.value);
+      const unsafeUrl = !pastedImage && /^\s*(javascript|data|vbscript):/i.test(attr.value);
       if (attr.name.startsWith("on") || unsafeUrl) el.removeAttribute(attr.name);
     });
   });
