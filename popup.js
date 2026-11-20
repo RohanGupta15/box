@@ -33,7 +33,10 @@ async function getNotes() {
 }
 
 function saveNotes(notes) {
-  return browser.storage.local.set({ [STORAGE_KEY]: notes });
+  return browser.storage.local.set({ [STORAGE_KEY]: notes }).catch((err) => {
+    showToast("Couldn't save your changes", "error");
+    throw err; // callers stop here, so an unsaved note stays in the editor and a failed delete isn't reported as done
+  });
 }
 
 function escapeHtml(text) {
