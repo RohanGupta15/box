@@ -55,7 +55,7 @@ function sanitizeHtml(html) {
   return t.innerHTML;
 }
 
-function stripHtml(html) {
+function stripHtml(html, { listMarkers } = {}) {
   const t = document.createElement("template");
   t.innerHTML = html;
   // shortcut: fits the editor's own div/li/br markup; pasted nested blocks may gain or lose a break, upgrade if that shows up.
@@ -64,6 +64,13 @@ function stripHtml(html) {
     if (!br.nextSibling && br.parentElement?.matches("div, p, li")) br.remove();
     else br.replaceWith("\n");
   });
+  // Plain text has no list styling, so each item spells out its bullet or number.
+  // shortcut: nested items aren't indented, upgrade if pasted nested lists show up.
+  if (listMarkers) {
+    t.content.querySelectorAll("ul, ol").forEach((list) => {
+      list.querySelectorAll(":scope > li").forEach((li, i) => li.prepend(list.matches("ol") ? `${list.start + i}. ` : "• "));
+    });
+  }
   t.content.querySelectorAll("div, p, li").forEach((el) => el.before("\n"));
   return t.content.textContent.trim();
 }
@@ -419,7 +426,7 @@ async function copyContent(id) {
   const note = (await getNotes()).find((n) => n.id === id);
   if (!note) return;
 
-  copyTextToClipboard([note.title, stripHtml(note.body)].filter(Boolean).join("\n\n"))
+  copyTextToClipboard([note.title, stripHtml(note.body, { listMarkers: true })].filter(Boolean).join("\n\n"))
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
