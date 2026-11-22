@@ -86,8 +86,9 @@ function formatTimestamp(date) {
   if (d.toDateString() === yesterday.toDateString()) {
     return `Yesterday at ${time}`;
   }
+  const year = d.getFullYear() === new Date().getFullYear() ? undefined : "numeric";
   return (
-    d.toLocaleDateString([], { month: "short", day: "numeric" }) + ` at ${time}`
+    d.toLocaleDateString([], { month: "short", day: "numeric", year }) + ` at ${time}`
   );
 }
 
