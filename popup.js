@@ -39,7 +39,7 @@ function saveNotes(notes) {
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(text));
-  return div.innerHTML;
+  return div.innerHTML.replaceAll('"', "&quot;"); // quotes too, so the text is also safe inside an attribute
 }
 
 function sanitizeHtml(html) {
@@ -142,27 +142,29 @@ async function render() {
   }
 
   list.innerHTML = notes
-    .map(
-      (note) => `
+    .map((note) => {
+      // Each button names its note, by title or else the start of its text, so every card's buttons sound different.
+      const name = escapeHtml(note.title || stripHtml(note.body).replace(/\s+/g, " ").slice(0, 40) || "Untitled");
+      return `
       <div class="note-card" data-id="${note.id}" tabindex="0">
         <div class="note-card-header">
           <span class="note-timestamp">${formatTimestamp(note.createdAt)}</span>
           <div class="note-card-actions">
-            <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note" aria-label="Delete note">
+            <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note: ${name}" aria-label="Delete note: ${name}">
               ${iconUse("delete", 14)}
             </button>
-            <button class="icon-btn edit-btn" data-id="${note.id}" title="Edit note" aria-label="Edit note">
+            <button class="icon-btn edit-btn" data-id="${note.id}" title="Edit note: ${name}" aria-label="Edit note: ${name}">
               ${iconUse("reading", 14)}
             </button>
-            <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note" aria-label="Copy note">
+            <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note: ${name}" aria-label="Copy note: ${name}">
               ${iconUse("copy", 14)}
             </button>
           </div>
         </div>
         <div class="note-title">${escapeHtml(note.title || "Untitled")}</div>
         <div class="note-preview">${sanitizeHtml(note.body || "No content")}</div>
-      </div>`,
-    )
+      </div>`;
+    })
     .join("");
 }
 
