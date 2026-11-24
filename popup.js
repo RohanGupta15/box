@@ -406,9 +406,12 @@ function showToast(message, type, action) {
     clearTimeout(window._toastTimer);
   }
 
-  window._toastTimer = setTimeout(() => {
-    toast.classList.remove("show");
-  }, action ? 5000 : 3000);
+  // It waits while the pointer is on it or focus is in it, so Undo can't vanish mid-reach.
+  const hide = () => {
+    if (toast.matches(".show:hover, .show:focus-within")) window._toastTimer = setTimeout(hide, 1000);
+    else toast.classList.remove("show");
+  };
+  window._toastTimer = setTimeout(hide, action ? 5000 : 3000);
 }
 
 function copyTextToClipboard(text) {
