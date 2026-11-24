@@ -143,8 +143,8 @@ async function render() {
 
   list.innerHTML = notes
     .map((note) => {
-      // Each button names its note, by title or else the start of its text, so every card's buttons sound different.
-      const name = escapeHtml(note.title || stripHtml(note.body).replace(/\s+/g, " ").slice(0, 40) || "Untitled");
+      // Each button names its note, by title or else text, so cards sound different; kept short as it's read on every button.
+      const name = escapeHtml((note.title?.trim() || stripHtml(note.body)).replace(/\s+/g, " ").slice(0, 40) || "Untitled");
       return `
       <div class="note-card" data-id="${note.id}" tabindex="0">
         <div class="note-card-header">
