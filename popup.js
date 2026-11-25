@@ -386,7 +386,8 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
 
 // Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
 document.querySelector("#noteList").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.classList.contains("note-card")) e.target.click();
+  // A held key's repeats are skipped, so the Enter that just saved a note doesn't reopen it.
+  if (e.key === "Enter" && !e.repeat && e.target.classList.contains("note-card")) e.target.click();
 });
 
 function showToast(message, type, action) {
