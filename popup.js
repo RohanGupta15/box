@@ -109,7 +109,7 @@ function switchTab(tabId) {
   });
 
   if (tabId === "list") {
-    render();
+    return render();
   }
 
   if (tabId === "new") {
@@ -192,7 +192,15 @@ async function addNote() {
   }
   await saveNotes(notes);
   await startNewNote();
-  switchTab("list");
+  await switchTab("list");
+
+  // Focus lands on the saved note so the keyboard carries on from it, clearing a search that hides it.
+  const selector = `.note-card[data-id="${(existing ?? notes[0]).id}"]`;
+  if (!document.querySelector(selector)) {
+    document.querySelector("#searchInput").value = "";
+    await render();
+  }
+  document.querySelector(selector)?.focus();
 }
 
 let editingId = null;
