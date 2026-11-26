@@ -24,7 +24,7 @@
   --color-border-light: #F4F4F5;
   --color-border-active: var(--color-primary);
 
-  --color-danger: #DC2626;
+  --color-danger: #B91C1C; /* 5.7:1 on the error message's tinted background; #DC2626 was 4.25 */
   --color-danger-bg: rgba(239, 68, 68, 0.08);
   --color-success: #047857;
   --color-success-bg: rgba(16, 185, 129, 0.08);
