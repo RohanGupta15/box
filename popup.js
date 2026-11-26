@@ -32,8 +32,11 @@ async function getNotes() {
   }
 }
 
-function saveNotes(notes) {
-  return browser.storage.local.set({ [STORAGE_KEY]: notes });
+function saveNotes(notes, retry) {
+  return browser.storage.local.set({ [STORAGE_KEY]: notes }).catch((err) => {
+    showToast("Couldn't save your changes", "error", retry && { label: "Try again", onClick: retry });
+    throw err; // callers stop here, so an unsaved note stays in the editor and a failed delete isn't reported as done
+  });
 }
 
 function escapeHtml(text) {
@@ -260,10 +263,11 @@ async function deleteNote(id) {
 
   showToast("Note deleted", "success", {
     label: "Undo",
-    onClick: async () => {
+    onClick: async function undo() {
       const current = await getNotes();
       current.splice(Math.min(index, current.length), 0, removed);
-      await saveNotes(current);
+      // The deleted note now exists only in this popup, so a failed Undo can be tried again.
+      await saveNotes(current, undo);
       render();
     },
   });
