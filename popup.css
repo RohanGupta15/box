@@ -417,6 +417,12 @@
     margin-bottom: var(--space-2xs);
 }
 
+/* Box's accent, not the browser's dark blue, which is hard to read on the dark background. */
+.editor-body a,
+.note-preview a {
+    color: var(--color-primary);
+}
+
 /* ─── Empty State ─── */
 .empty-state {
     display: flex;

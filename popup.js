@@ -45,6 +45,17 @@ function escapeHtml(text) {
   return div.innerHTML.replaceAll('"', "&quot;"); // quotes too, so the text is also safe inside an attribute
 }
 
+// Pasted text brings its source's colors and fonts (dark text vanishes in dark mode) and class/id names Box's own CSS and code would catch.
+function dropPastedStyling(root) {
+  root.querySelectorAll("[style]").forEach((el) => {
+    ["color", "background", "font-family", "font-size"].forEach((name) => el.style.removeProperty(name));
+    if (!el.style.length) el.removeAttribute("style");
+  });
+  root.querySelectorAll("*").forEach((el) => {
+    ["class", "id", "color", "bgcolor", "background", "face", "size"].forEach((name) => el.removeAttribute(name));
+  });
+}
+
 function sanitizeHtml(html) {
   const t = document.createElement("template");
   t.innerHTML = html;
@@ -57,6 +68,7 @@ function sanitizeHtml(html) {
       if (attr.name.startsWith("on") || unsafeUrl) el.removeAttribute(attr.name);
     });
   });
+  dropPastedStyling(t.content);
   return t.innerHTML;
 }
 
@@ -373,6 +385,11 @@ function saveDraft() {
     },
   });
 }
+
+// Paste and drop put text straight into the editor, so clean it now rather than only once the note is saved.
+document.querySelector("#bodyEditor").addEventListener("input", (e) => {
+  if (e.inputType?.startsWith("insertFrom")) dropPastedStyling(e.currentTarget);
+});
 
 document.querySelector("#searchInput").addEventListener("input", render);
 document.querySelector("#titleInput").addEventListener("input", saveDraft);
