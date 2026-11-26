@@ -32,8 +32,11 @@ async function getNotes() {
   }
 }
 
-function saveNotes(notes) {
-  return browser.storage.local.set({ [STORAGE_KEY]: notes });
+function saveNotes(notes, retry) {
+  return browser.storage.local.set({ [STORAGE_KEY]: notes }).catch((err) => {
+    showToast("Couldn't save your changes", "error", retry && { label: "Try again", onClick: retry });
+    throw err; // callers stop here, so an unsaved note stays in the editor and a failed delete isn't reported as done
+  });
 }
 
 function escapeHtml(text) {
@@ -48,14 +51,16 @@ function sanitizeHtml(html) {
   t.content.querySelectorAll("script, style, iframe, object, embed").forEach((el) => el.remove());
   t.content.querySelectorAll("*").forEach((el) => {
     [...el.attributes].forEach((attr) => {
-      const unsafeUrl = /^\s*(javascript|data|vbscript):/i.test(attr.value);
+      // Pasted screenshots arrive as data: images, and an <img> can't run script; data: stays blocked everywhere else.
+      const pastedImage = el.matches("img") && attr.name === "src" && /^\s*data:image\//i.test(attr.value);
+      const unsafeUrl = !pastedImage && /^\s*(javascript|data|vbscript):/i.test(attr.value);
       if (attr.name.startsWith("on") || unsafeUrl) el.removeAttribute(attr.name);
     });
   });
   return t.innerHTML;
 }
 
-function stripHtml(html) {
+function stripHtml(html, { forCopy } = {}) {
   const t = document.createElement("template");
   t.innerHTML = html;
   // shortcut: fits the editor's own div/li/br markup; pasted nested blocks may gain or lose a break, upgrade if that shows up.
@@ -64,6 +69,18 @@ function stripHtml(html) {
     if (!br.nextSibling && br.parentElement?.matches("div, p, li")) br.remove();
     else br.replaceWith("\n");
   });
+  // Plain text has no list styling or links, so each item spells out its bullet or number, and each link its address.
+  // shortcut: nested items aren't indented, upgrade if pasted nested lists show up.
+  if (forCopy) {
+    t.content.querySelectorAll("ul, ol").forEach((list) => {
+      list.querySelectorAll(":scope > li").forEach((li, i) => li.prepend(list.matches("ol") ? `${list.start + i}. ` : "• "));
+    });
+    t.content.querySelectorAll("a[href]").forEach((a) => {
+      const url = a.getAttribute("href").trim();
+      // A link that already reads as its address isn't repeated, even when only one of them ends in a slash.
+      if (url && url.replace(/\/$/, "") !== a.textContent.trim().replace(/\/$/, "")) a.after(` (${url})`);
+    });
+  }
   t.content.querySelectorAll("div, p, li").forEach((el) => el.before("\n"));
   return t.content.textContent.trim();
 }
@@ -86,9 +103,16 @@ function formatTimestamp(date) {
   if (d.toDateString() === yesterday.toDateString()) {
     return `Yesterday at ${time}`;
   }
+  const year = d.getFullYear() === new Date().getFullYear() ? undefined : "numeric";
   return (
-    d.toLocaleDateString([], { month: "short", day: "numeric" }) + ` at ${time}`
+    d.toLocaleDateString([], { month: "short", day: "numeric", year }) + ` at ${time}`
   );
+}
+
+// "Edited today at 14:05" once a note has been changed, otherwise when it was written.
+function noteTimestamp(note) {
+  if (!note.updatedAt) return formatTimestamp(note.createdAt);
+  return `Edited ${formatTimestamp(note.updatedAt).replace(/^(Today|Yesterday)/, (day) => day.toLowerCase())}`;
 }
 
 function iconUse(name, size) {
@@ -102,6 +126,7 @@ function switchTab(tabId) {
     const isActive = item.dataset.tab === tabId;
     item.classList.toggle("active", isActive);
     item.setAttribute("aria-selected", isActive);
+    item.tabIndex = isActive ? 0 : -1; // only the selected tab is in the Tab order; arrows reach the other
   });
 
   document.querySelectorAll(".tab-panel").forEach((panel) => {
@@ -141,6 +166,9 @@ async function render() {
     return;
   }
 
+  // Redrawing replaces every card, so keep focus in the list: on the same note, or the one now in its place.
+  const focused = document.activeElement?.closest(".note-card");
+  const pos = [...list.children].indexOf(focused);
   list.innerHTML = notes
     .map((note) => {
       // Each button names its note, by title or else text, so cards sound different; kept short as it's read on every button.
@@ -148,13 +176,13 @@ async function render() {
       return `
       <div class="note-card" data-id="${note.id}" tabindex="0">
         <div class="note-card-header">
-          <span class="note-timestamp">${formatTimestamp(note.createdAt)}</span>
+          <span class="note-timestamp">${noteTimestamp(note)}</span>
           <div class="note-card-actions">
             <button class="icon-btn danger delete-btn" data-id="${note.id}" title="Delete note: ${name}" aria-label="Delete note: ${name}">
               ${iconUse("delete", 14)}
             </button>
             <button class="icon-btn edit-btn" data-id="${note.id}" title="Edit note: ${name}" aria-label="Edit note: ${name}">
-              ${iconUse("reading", 14)}
+              ${iconUse("edit", 14)}
             </button>
             <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note: ${name}" aria-label="Copy note: ${name}">
               ${iconUse("copy", 14)}
@@ -166,6 +194,10 @@ async function render() {
       </div>`;
     })
     .join("");
+  if (focused) {
+    const cards = [...list.children];
+    (cards.find((c) => c.dataset.id === focused.dataset.id) ?? cards[pos] ?? cards.at(-1)).focus();
+  }
 }
 
 /* ─── Actions ─── */
@@ -182,6 +214,8 @@ async function addNote() {
   const notes = await getNotes();
   const existing = notes.find((n) => n.id === editingId);
   if (existing) {
+    // The editor tidies stored HTML (e.g. & to &amp;), so compare the tidied form or an unchanged re-save counts as an edit.
+    if (existing.title !== title || sanitizeHtml(existing.body).trim() !== body) existing.updatedAt = new Date().toISOString();
     existing.title = title;
     existing.body = body;
   } else {
@@ -237,12 +271,14 @@ async function deleteNote(id) {
   await saveNotes(notes);
   render();
 
-  showToast("Note deleted", "success", {
+  showToast("Note deleted. Press Ctrl+Z or", "success", {
+    keys: "Control+Z",
     label: "Undo",
-    onClick: async () => {
+    onClick: async function undo() {
       const current = await getNotes();
       current.splice(Math.min(index, current.length), 0, removed);
-      await saveNotes(current);
+      // The deleted note now exists only in this popup, so a failed Undo can be tried again.
+      await saveNotes(current, undo);
       render();
     },
   });
@@ -318,6 +354,15 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Ctrl+Z (Cmd+Z on Mac) presses Undo while it shows; text fields keep their own undo.
+document.addEventListener("keydown", (e) => {
+  const undo = document.querySelector('#toast.show [aria-keyshortcuts="Control+Z"]');
+  if (!undo || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+  if (e.target.closest("input, textarea, [contenteditable]")) return;
+  e.preventDefault();
+  undo.click();
+});
+
 // The popup closes on any outside click, so keep the unsaved note in storage.
 function saveDraft() {
   browser.storage.local.set({
@@ -338,7 +383,11 @@ function markBlankEditor() {
   const editor = document.querySelector("#bodyEditor");
   editor.classList.toggle("blank", !hasBody(editor.innerHTML) && !editor.querySelector("ul, ol"));
 }
-new MutationObserver(markBlankEditor).observe(document.querySelector("#bodyEditor"), {
+// Also refresh the toolbar: code swaps the editor's content (edit, new note, draft) without a key or click.
+new MutationObserver(() => {
+  markBlankEditor();
+  updateToolbarState();
+}).observe(document.querySelector("#bodyEditor"), {
   childList: true,
   subtree: true,
   characterData: true,
@@ -360,7 +409,10 @@ function updateToolbarState() {
   document.querySelectorAll("[data-cmd]").forEach((btn) => {
     const cmd = btn.dataset.cmd;
     try {
-      btn.classList.toggle("active", document.queryCommandState(cmd));
+      const on = document.queryCommandState(cmd);
+      btn.classList.toggle("active", on);
+      // Only the on/off buttons carry aria-pressed; Remove formatting is a one-shot action.
+      if (btn.hasAttribute("aria-pressed")) btn.setAttribute("aria-pressed", on);
     } catch {}
   });
 }
@@ -378,6 +430,40 @@ document.querySelector("#toolbar").addEventListener("click", (e) => {
   document.querySelector("#bodyEditor").addEventListener(type, updateToolbarState),
 );
 
+/* ─── Arrow keys in the tabs and toolbar ─── */
+
+// Where Left/Right/Home/End move focus in a row of n items, wrapping around; null for any other key.
+function roveIndex(key, i, n) {
+  if (key === "Home") return 0;
+  if (key === "End") return n - 1;
+  const step = { ArrowLeft: -1, ArrowRight: 1 }[key];
+  return step ? (i + step + n) % n : null;
+}
+
+// Arrow keys move focus along a row of items; each group's tabIndex decides where Tab lands.
+function arrowKeys(group, selector) {
+  group.addEventListener("keydown", (e) => {
+    if (!e.target.matches(selector)) return;
+    const items = [...group.querySelectorAll(selector)];
+    const next = roveIndex(e.key, items.indexOf(e.target), items.length);
+    if (next === null) return;
+    e.preventDefault();
+    items[next].focus();
+  });
+}
+
+// Tabs: arrows only move focus and Enter or Space selects, so passing over New doesn't trigger
+// the unsaved-changes prompt; switchTab keeps the selected tab in the Tab order.
+arrowKeys(document.querySelector(".nav"), ".nav-item");
+
+// Toolbar: Tab comes back to the button used last.
+const toolbar = document.querySelector("#toolbar");
+arrowKeys(toolbar, ".tb-btn");
+toolbar.addEventListener("focusin", (e) => {
+  if (!e.target.matches(".tb-btn")) return;
+  toolbar.querySelectorAll(".tb-btn").forEach((btn) => (btn.tabIndex = btn === e.target ? 0 : -1));
+});
+
 // Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
 document.querySelector("#noteList").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.classList.contains("note-card")) e.target.click();
@@ -393,6 +479,7 @@ function showToast(message, type, action) {
     const btn = document.createElement("button");
     btn.className = "toast-action";
     btn.textContent = action.label;
+    if (action.keys) btn.setAttribute("aria-keyshortcuts", action.keys);
     btn.addEventListener(
       "click",
       () => {
@@ -421,7 +508,7 @@ async function copyContent(id) {
   const note = (await getNotes()).find((n) => n.id === id);
   if (!note) return;
 
-  copyTextToClipboard([note.title, stripHtml(note.body)].filter(Boolean).join("\n\n"))
+  copyTextToClipboard([note.title, stripHtml(note.body, { forCopy: true })].filter(Boolean).join("\n\n"))
     .then(() => {
       showToast("Copied to clipboard", "success");
     })
@@ -459,4 +546,27 @@ document.querySelector("#theme-btn").addEventListener("click", () => {
   applyTheme(newTheme);
   saveTheme(newTheme);
   showToast(`Switched to ${newTheme} mode`, "success");
+});
+
+// A data: link rather than a blob URL, so the download survives Firefox closing the popup to show it.
+document.querySelector("#export-btn").addEventListener("click", async () => {
+  const notes = await getNotes();
+  if (!notes.length) return showToast("No notes to export", "error");
+  const link = document.createElement("a");
+  link.href = `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(notes, null, 2))}`;
+  const d = new Date();
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  link.download = `box-notes-${day}.json`;
+  document.body.append(link); // attached first: older Firefox ignored clicks on detached links
+  link.click();
+  link.remove();
+});
+
+// Firefox closes the popup when a file picker opens, so the backup is picked in a small window of its own.
+document.querySelector("#import-btn").addEventListener("click", async () => {
+  await getNotes(); // runs the one-time move of very old notes out of localStorage before import.js writes
+  browser.windows
+    .create({ url: "import.html", type: "popup", width: 400, height: 320 })
+    .then(() => window.close())
+    .catch(() => showToast("Couldn't open the import window", "error"));
 });

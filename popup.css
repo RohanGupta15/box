@@ -84,10 +84,9 @@
 .nav {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--space-2xs);
     padding: var(--space-sm) var(--space-md);
     border-bottom: 1px solid var(--color-border);
-    overflow-x: auto;
     background-color: var(--color-bg);
 }
 
@@ -117,6 +116,7 @@
     color: var(--color-primary);
 }
 
+/* Sits on the tab bar's bottom border (8px padding + 1px), so .nav must not clip its overflow. */
 .nav-item.active::after {
     content: "";
     position: absolute;
@@ -132,7 +132,7 @@
 /* ─── Tab Panels ─── */
 .tab-panel {
     display: none;
-    padding-bottom: 1rem;
+    padding-bottom: var(--space-lg);
 }
 
 .tab-panel.active {
@@ -144,7 +144,7 @@
     font-size: var(--font-size-md);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
-    padding: var(--space-lg) var(--space-lg) var(--space-md);
+    padding: var(--space-lg) var(--space-lg) var(--space-sm);
 }
 
 /* ─── Note Composer ─── */
@@ -193,8 +193,9 @@
 .editor-toolbar {
     display: flex;
     align-items: center;
-    gap: 2px;
-    padding: 4px 6px;
+    gap: var(--space-2xs);
+    /* 6px, off the scale on purpose: it lines the first icon up with the editor text below */
+    padding: var(--space-xs) 6px;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-bg-secondary);
 }
@@ -230,7 +231,7 @@
     width: 1px;
     height: 16px;
     background: var(--color-border);
-    margin: 0 4px;
+    margin: 0 var(--space-xs);
     flex-shrink: 0;
 }
 
@@ -238,6 +239,7 @@
     min-height: 90px;
     max-height: 200px;
     overflow-y: auto;
+    overflow-wrap: anywhere;
     padding: var(--space-sm) var(--space-md);
     border: none;
     border-radius: 0;
@@ -253,6 +255,11 @@
     color: var(--color-text);
 }
 
+.editor-body img {
+    max-width: 100%;
+    height: auto;
+}
+
 .editor-body:empty:before,
 .editor-body.blank:before {
     content: attr(data-placeholder);
@@ -263,24 +270,25 @@
 .editor-body ul,
 .editor-body ol {
     padding-left: 2em;
-    margin: 4px 0;
+    margin: var(--space-xs) 0;
 }
 
 .editor-body li {
-    margin-bottom: 2px;
+    margin-bottom: var(--space-2xs);
 }
 
 /* ─── Composer Actions ─── */
 .composer-actions {
     display: flex;
     justify-content: flex-end;
+    margin-top: var(--space-xs);
 }
 
 .btn-primary {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg);
     border: none;
     border-radius: var(--radius-lg);
     background: var(--color-primary);
@@ -305,10 +313,10 @@
 
 /* ─── Note List ─── */
 .note-list {
-    padding: 0 var(--space-lg) var(--space-lg);
+    padding: 0 var(--space-lg);
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
+    gap: var(--space-md);
 }
 
 /* ─── Note Card ─── */
@@ -332,7 +340,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-xs);
 }
 
 .note-timestamp {
@@ -343,7 +351,7 @@
 
 .note-card-actions {
     display: flex;
-    gap: 2px;
+    gap: var(--space-xs);
     opacity: 0;
     transition: opacity var(--transition-fast);
 }
@@ -373,7 +381,7 @@
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
-    margin-bottom: 2px;
+    margin-bottom: var(--space-2xs);
     line-height: var(--line-height-tight);
     white-space: nowrap;
     overflow: hidden;
@@ -388,16 +396,25 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+/* At most the preview's two lines tall (3em), keeping its shape even if the pasted image set a width or height. */
+.note-preview img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 3em;
 }
 
 .note-preview ul,
 .note-preview ol {
     padding-left: 1.5em;
-    margin: 4px 0;
+    margin: var(--space-xs) 0;
 }
 
 .note-preview li {
-    margin-bottom: 2px;
+    margin-bottom: var(--space-2xs);
 }
 
 /* ─── Empty State ─── */
@@ -422,10 +439,13 @@
 }
 
 /* ─── Toast Notification ─── */
+/* Fixed, not sticky: a sticky toast keeps its box in the flow, leaving a blank strip and extra scroll when hidden. */
 #toast.notification {
-    position: sticky;
+    position: fixed;
     z-index: 1;
+    right: 0;
     bottom: 0;
+    left: 0;
     padding: var(--space-sm) var(--space-lg);
     font-size: var(--font-size-sm);
     text-align: center;
@@ -449,6 +469,12 @@
     font-weight: var(--font-weight-semibold);
     text-decoration: underline;
     cursor: pointer;
+    transition: visibility var(--transition-normal);
+}
+
+/* Once the toast is down, its Undo/Discard can't be reached with Tab; the live region itself stays for screen readers. */
+#toast.notification:not(.show) .toast-action {
+    visibility: hidden;
 }
 
 #toast.notification.success {
@@ -461,7 +487,9 @@
     color: var(--color-danger);
 }
 
+/* The list panel has no side padding of its own, so inset the search box to line up with the cards. */
 .search-input {
-    margin-bottom: var(--space-md);
+    width: calc(100% - 2 * var(--space-lg));
+    margin: 0 var(--space-lg) var(--space-lg);
     font-weight: var(--font-weight-normal);
 }
