@@ -424,10 +424,13 @@
 }
 
 /* ─── Toast Notification ─── */
+/* Fixed, not sticky: a sticky toast keeps its box in the flow, leaving a blank strip and extra scroll when hidden. */
 #toast.notification {
-    position: sticky;
+    position: fixed;
     z-index: 1;
+    right: 0;
     bottom: 0;
+    left: 0;
     padding: var(--space-sm) var(--space-lg);
     font-size: var(--font-size-sm);
     text-align: center;
@@ -451,6 +454,12 @@
     font-weight: var(--font-weight-semibold);
     text-decoration: underline;
     cursor: pointer;
+    transition: visibility var(--transition-normal);
+}
+
+/* Once the toast is down, its Undo/Discard can't be reached with Tab; the live region itself stays for screen readers. */
+#toast.notification:not(.show) .toast-action {
+    visibility: hidden;
 }
 
 #toast.notification.success {
