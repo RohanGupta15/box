@@ -153,7 +153,7 @@ async function render() {
               ${iconUse("delete", 14)}
             </button>
             <button class="icon-btn edit-btn" data-id="${note.id}" title="Edit note" aria-label="Edit note">
-              ${iconUse("reading", 14)}
+              ${iconUse("edit", 14)}
             </button>
             <button class="icon-btn copy-btn" data-id="${note.id}" title="Copy note" aria-label="Copy note">
               ${iconUse("copy", 14)}
