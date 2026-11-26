@@ -320,6 +320,17 @@ document.querySelector("#bodyEditor").addEventListener("keydown", (e) => {
   }
 });
 
+// A double-click's second click hits whatever the first left under the pointer (the list after Save), so drop it.
+document.querySelector("#app").addEventListener(
+  "click",
+  (e) => {
+    if (e.detail < 2) return;
+    e.preventDefault();
+    e.stopPropagation();
+  },
+  true, // capture, so it runs before the Save button's own listener
+);
+
 document.querySelector("#app").addEventListener("click", (e) => {
   const closeBtn = e.target.closest("[aria-label='Close']");
   if (closeBtn) {
