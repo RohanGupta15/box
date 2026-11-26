@@ -146,7 +146,7 @@ function switchTab(tabId) {
   });
 
   if (tabId === "list") {
-    render();
+    return render();
   }
 
   if (tabId === "new") {
@@ -240,7 +240,15 @@ async function addNote() {
   }
   await saveNotes(notes);
   await startNewNote();
-  switchTab("list");
+  await switchTab("list");
+
+  // Focus lands on the saved note so the keyboard carries on from it, clearing a search that hides it.
+  const selector = `.note-card[data-id="${(existing ?? notes[0]).id}"]`;
+  if (!document.querySelector(selector)) {
+    document.querySelector("#searchInput").value = "";
+    await render();
+  }
+  document.querySelector(selector)?.focus();
 }
 
 let editingId = null;
@@ -483,7 +491,8 @@ toolbar.addEventListener("focusin", (e) => {
 
 // Enter on a focused card opens it like a click; the buttons inside handle Enter themselves.
 document.querySelector("#noteList").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.classList.contains("note-card")) e.target.click();
+  // A held key's repeats are skipped, so the Enter that just saved a note doesn't reopen it.
+  if (e.key === "Enter" && !e.repeat && e.target.classList.contains("note-card")) e.target.click();
 });
 
 function showToast(message, type, action) {
