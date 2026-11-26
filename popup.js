@@ -102,6 +102,12 @@ function hasBody(html) {
   return Boolean(stripHtml(html)) || html.includes("<img");
 }
 
+// Ignores case and accents, so "cafe" finds "Café". Only U+0300–036F accents go, so Hindi's vowel signs still count.
+// shortcut: letters Unicode doesn't split into letter + accent (ø, ł, æ) aren't folded; upgrade if someone needs them.
+function foldForSearch(text) {
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
 function formatTimestamp(date) {
   const d = new Date(date);
   const yesterday = new Date();
@@ -159,10 +165,8 @@ function switchTab(tabId) {
 async function render() {
   const allNotes = await getNotes();
   const list = document.querySelector("#noteList");
-  const query = document.querySelector("#searchInput").value.trim().toLowerCase();
-  const notes = allNotes.filter((n) =>
-    `${n.title} ${stripHtml(n.body)}`.toLowerCase().includes(query),
-  );
+  const query = foldForSearch(document.querySelector("#searchInput").value.trim());
+  const notes = allNotes.filter((n) => foldForSearch(`${n.title} ${stripHtml(n.body)}`).includes(query));
 
   if (allNotes.length && !notes.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-state-text">No notes match your search.</div></div>`;
