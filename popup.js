@@ -283,6 +283,9 @@ async function confirmDiscard(next) {
   showToast("You have unsaved changes", "error", { label: "Discard", onClick: next });
 }
 
+// Notes deleted in a row while the Undo message is up, so one Undo brings them all back.
+let undoable = [];
+
 async function deleteNote(id) {
   const notes = await getNotes();
   const index = notes.findIndex((n) => n.id === id);
@@ -291,13 +294,16 @@ async function deleteNote(id) {
   await saveNotes(notes);
   render();
 
-  showToast("Note deleted. Press Ctrl+Z or", "success", {
+  if (!document.querySelector('#toast.show [aria-keyshortcuts="Control+Z"]')) undoable = []; // its message closed
+  undoable.push({ note: removed, index });
+  showToast(`${undoable.length === 1 ? "Note" : `${undoable.length} notes`} deleted. Press Ctrl+Z or`, "success", {
     keys: "Control+Z",
     label: "Undo",
     onClick: async function undo() {
+      const back = [...undoable].reverse(); // latest first, so each note lands back in its old place
       const current = await getNotes();
-      current.splice(Math.min(index, current.length), 0, removed);
-      // The deleted note now exists only in this popup, so a failed Undo can be tried again.
+      back.forEach((d) => current.splice(Math.min(d.index, current.length), 0, d.note));
+      // The deleted notes now exist only in this popup, so a failed Undo can be tried again.
       await saveNotes(current, undo);
       render();
     },
