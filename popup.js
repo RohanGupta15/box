@@ -165,6 +165,9 @@ async function render() {
     return;
   }
 
+  // Redrawing replaces every card, so keep focus in the list: on the same note, or the one now in its place.
+  const focused = document.activeElement?.closest(".note-card");
+  const pos = [...list.children].indexOf(focused);
   list.innerHTML = notes
     .map(
       (note) => `
@@ -188,6 +191,10 @@ async function render() {
       </div>`,
     )
     .join("");
+  if (focused) {
+    const cards = [...list.children];
+    (cards.find((c) => c.dataset.id === focused.dataset.id) ?? cards[pos] ?? cards.at(-1)).focus();
+  }
 }
 
 /* ─── Actions ─── */
@@ -261,7 +268,8 @@ async function deleteNote(id) {
   await saveNotes(notes);
   render();
 
-  showToast("Note deleted", "success", {
+  showToast("Note deleted. Press Ctrl+Z or", "success", {
+    keys: "Control+Z",
     label: "Undo",
     onClick: async function undo() {
       const current = await getNotes();
@@ -341,6 +349,15 @@ document.addEventListener("keydown", (e) => {
     document.querySelector("#titleInput").blur();
     document.querySelector("#bodyEditor").blur();
   }
+});
+
+// Ctrl+Z (Cmd+Z on Mac) presses Undo while it shows; text fields keep their own undo.
+document.addEventListener("keydown", (e) => {
+  const undo = document.querySelector('#toast.show [aria-keyshortcuts="Control+Z"]');
+  if (!undo || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+  if (e.target.closest("input, textarea, [contenteditable]")) return;
+  e.preventDefault();
+  undo.click();
 });
 
 // The popup closes on any outside click, so keep the unsaved note in storage.
@@ -459,6 +476,7 @@ function showToast(message, type, action) {
     const btn = document.createElement("button");
     btn.className = "toast-action";
     btn.textContent = action.label;
+    if (action.keys) btn.setAttribute("aria-keyshortcuts", action.keys);
     btn.addEventListener(
       "click",
       () => {
