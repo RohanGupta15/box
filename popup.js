@@ -417,18 +417,22 @@ let imagesBeforePaste = null;
 async function copyWebPictures(editor) {
   const before = imagesBeforePaste;
   imagesBeforePaste = null;
-  const pictures = [...editor.querySelectorAll('img[src^="http"]')].filter((img) => before && !before.has(img));
+  // img.src is the address as Firefox reads it, so "HTTPS:" or a leading space can't slip past.
+  const pictures = [...editor.querySelectorAll("img")].filter((img) => before && !before.has(img) && /^https?:/.test(img.src));
   if (!pictures.length) return;
   const allowed = await browser.permissions.contains({ origins: ["<all_urls>"] });
+  let failed = 0;
   await Promise.all(
     pictures.map(async (img) => {
       img.removeAttribute("srcset"); // or Firefox could still load another size from the site
       img.closest("picture")?.querySelectorAll("source").forEach((source) => source.remove());
       try {
         if (!allowed) throw new Error("not allowed");
-        const response = await fetch(img.src, { credentials: "omit" });
+        // Only the address reaches the site, and a slow or huge picture is given up on.
+        const options = { credentials: "omit", referrerPolicy: "no-referrer", signal: AbortSignal.timeout(10000) };
+        const response = await fetch(img.src, options);
         const blob = await response.blob();
-        if (!response.ok || !blob.type.startsWith("image/")) throw new Error("not a picture");
+        if (!response.ok || !blob.type.startsWith("image/") || blob.size > 5e6) throw new Error("not a picture under 5 MB");
         img.src = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -436,12 +440,14 @@ async function copyWebPictures(editor) {
           reader.readAsDataURL(blob);
         });
       } catch {
+        failed++;
         img.remove(); // left out rather than kept as a link back to its site
       }
     }),
   );
   saveDraft();
   if (!allowed) showToast("Pictures from the web were left out.", "error", { label: "Allow copying", onClick: openPicturesWindow });
+  else if (failed) showToast(`Left out ${failed} ${failed === 1 ? "picture" : "pictures"} that couldn't be copied.`, "error");
 }
 
 // Firefox's permission prompt can hide behind the toolbar popup or close it, so Box asks in a window of its own.
