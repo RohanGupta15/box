@@ -410,7 +410,16 @@ document.querySelector("#bodyEditor").addEventListener("input", (e) => {
   if (e.inputType?.startsWith("insertFrom")) dropPastedStyling(e.currentTarget);
 });
 
-document.querySelector("#searchInput").addEventListener("input", render);
+// Once typing pauses, a screen reader hears how many notes match, rather than every count along the way.
+document.querySelector("#searchInput").addEventListener("input", async (e) => {
+  await render();
+  clearTimeout(window._searchTimer);
+  window._searchTimer = setTimeout(() => {
+    const n = document.querySelectorAll("#noteList .note-card").length;
+    const status = n === 1 ? "1 note matches" : `${n || "No"} notes match`;
+    document.querySelector("#searchStatus").textContent = e.target.value.trim() ? status : "";
+  }, 1000);
+});
 document.querySelector("#titleInput").addEventListener("input", saveDraft);
 document.querySelector("#bodyEditor").addEventListener("input", saveDraft);
 
