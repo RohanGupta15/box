@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Copy pictures · Box</title>
+        <link rel="stylesheet" href="design-system.css" />
+        <link rel="stylesheet" href="popup.css" />
+        <style>
+            .pictures {
+                padding-bottom: var(--space-lg);
+            }
+
+            .pictures-text {
+                padding: 0 var(--space-lg) var(--space-lg);
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+            }
+
+            .pictures .btn-primary {
+                margin: 0 var(--space-lg);
+            }
+
+            .pictures-status:not(:empty) {
+                padding: var(--space-md) var(--space-lg) 0;
+                font-size: var(--font-size-sm);
+            }
+        </style>
+    </head>
+    <body>
+        <main class="pictures">
+            <h1 class="section-title">Copy pictures into notes</h1>
+            <p class="pictures-text">
+                To keep a picture you paste from a web page or an email, Box saves a copy of it in the
+                note, so it shows offline and the site can't see when you read it. Firefox will ask you
+                to let Box access your data for all websites. Box only uses that to download pictures
+                you paste.
+            </p>
+            <button class="btn-primary" id="allowBtn" autofocus>Allow</button>
+            <p class="pictures-status" id="picturesStatus" role="status" aria-live="polite"></p>
+        </main>
+
+        <script src="pictures.js"></script>
+    </body>
+</html>
