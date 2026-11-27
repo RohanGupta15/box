@@ -405,9 +405,58 @@ function saveDraft() {
   });
 }
 
+// Pictures pasted from the web are copied into the note, so Box doesn't load them from their site each time.
+let imagesBeforePaste = null;
+["paste", "drop"].forEach((type) =>
+  document.querySelector("#bodyEditor").addEventListener(type, (e) => {
+    imagesBeforePaste = new Set(e.currentTarget.querySelectorAll("img")); // tells new pictures from the note's own
+  }),
+);
+
+// shortcut: a note saved before its pictures finish copying keeps their web links; upgrade if that shows up.
+async function copyWebPictures(editor) {
+  const before = imagesBeforePaste;
+  imagesBeforePaste = null;
+  const pictures = [...editor.querySelectorAll('img[src^="http"]')].filter((img) => before && !before.has(img));
+  if (!pictures.length) return;
+  const allowed = await browser.permissions.contains({ origins: ["<all_urls>"] });
+  await Promise.all(
+    pictures.map(async (img) => {
+      img.removeAttribute("srcset"); // or Firefox could still load another size from the site
+      img.closest("picture")?.querySelectorAll("source").forEach((source) => source.remove());
+      try {
+        if (!allowed) throw new Error("not allowed");
+        const response = await fetch(img.src, { credentials: "omit" });
+        const blob = await response.blob();
+        if (!response.ok || !blob.type.startsWith("image/")) throw new Error("not a picture");
+        img.src = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        img.remove(); // left out rather than kept as a link back to its site
+      }
+    }),
+  );
+  saveDraft();
+  if (!allowed) showToast("Pictures from the web were left out.", "error", { label: "Allow copying", onClick: openPicturesWindow });
+}
+
+// Firefox's permission prompt can hide behind the toolbar popup or close it, so Box asks in a window of its own.
+function openPicturesWindow() {
+  browser.windows
+    .create({ url: "pictures.html", type: "popup", width: 400, height: 340 })
+    .then(() => window.close())
+    .catch(() => showToast("Couldn't open that window", "error"));
+}
+
 // Paste and drop put text straight into the editor, so clean it now rather than only once the note is saved.
 document.querySelector("#bodyEditor").addEventListener("input", (e) => {
-  if (e.inputType?.startsWith("insertFrom")) dropPastedStyling(e.currentTarget);
+  if (!e.inputType?.startsWith("insertFrom")) return;
+  dropPastedStyling(e.currentTarget);
+  copyWebPictures(e.currentTarget);
 });
 
 document.querySelector("#searchInput").addEventListener("input", render);
